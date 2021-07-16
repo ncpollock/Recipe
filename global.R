@@ -1,0 +1,50 @@
+# GLOBAL START ------------------------------------
+library(googlesheets4)
+library(shiny)
+library(shinydashboard) # just for some aesthetics eg box()
+library(DT)
+library(dplyr)
+library(tidyr)
+library(lubridate)
+# library(shinythemes) # consider bslib instead
+library(bslib) # add bs_themer() to server
+
+gs4_deauth() # query Google Sheets without authenticating as a user.
+
+# read in data from Google Sheets ------------------------------------------
+# imagine this is the URL or ID of a Sheet readable by anyone (with a link)
+ss <- "https://docs.google.com/spreadsheets/d/1_n0pWIyRXhggoUIzoMC12mwhB-LlCeXD5GaQFXrrpsA/edit?usp=sharing"
+food.df <- read_sheet(ss,"Food")
+step.df <- read_sheet(ss,"Step")
+type.df <- read_sheet(ss,"Type")
+
+# if I want to write or read private sheet
+# https://stackoverflow.com/questions/63535190/connect-to-googlesheets-via-shiny-in-r-with-googlesheets4
+# https://googlesheets4.tidyverse.org/articles/articles/auth.html
+
+# global stylings ----------------------------------
+# https://shiny.rstudio.com/articles/themes.html
+
+
+# style the Data Tables header.
+dt_header <- JS(
+  "function(settings, json) {",
+  "$(this.api().table().header()).css({'background-color': '#252525', 'color': '#FFFFFF'});",
+  "}")
+
+# options -----------------------------------------------------------
+options(shiny.maxRequestSize=1000^3,
+        shiny.sanitize.errors = TRUE,
+        # shiny.trace = TRUE, # print to R console?
+        DT.options = list(
+          initComplete = dt_header
+          , pageLength = 25
+          , lengthMenu = c(5,20,50)
+          , bPaginate=TRUE
+          # bFilter=FALSE,
+          # searching=FALSE,
+          # ordering=FALSE,
+          # dom = 't'
+        ))
+
+# END ------------------------------
