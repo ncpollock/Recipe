@@ -14,31 +14,19 @@ shinyUI(
                  'Browse', icon = icon("user")
                  , sidebarLayout(
                    sidebarPanel(
-                     textInput('meal_search',
+                     h1("Filters:")
+                     , textInput('meal_search',
                                'Search for a meal',
                                # value = 'chicken', # predefined value for testing
                                placeholder = 'chicken')
-                     , box(width = 12,collapsible = FALSE, collapsed = FALSE,
-                           title = "Site Administrator",
-                           p(strong("Name: "),"Noah Pollock"),
-                           p(strong("Email: "),"noahpollock@mycompany.com"))
-                     , box(width = 12,collapsible = FALSE, collapsed = FALSE,
-                           title = "Data Policy",
-                           p("The data entered on this site is retained in a private Google Sheet and is 
-            used exclusively for providing access to and maintaining the full functionality of this site. 
-            Data entered is never deliberately shared or distributed beyond individual users gaining access. 
-            Please contact the Site Administrator for more information or to request that 
-            your data be deleted."))
+                     , sliderInput('total_time','Prep + Cook Time',0,100,20,step = 5)
                    )
-                   , mainPanel(splitLayout(div(p("More.",br()
-                                                 ,"Stuff.",br()
-                                                 ,"Here.",br(),style="font-size: 200%; font-wieght: bold;")
-                                               ,p("Here. Too.")
-                                               ,align = "left")
-                                           ,p(icon("connectdevelop",class = "fa-10x"))))
-                 )),
+                   , mainPanel(DTOutput("recipes")
+                               , DTOutput("steps")
+                               ) # mainPanel
+                 )) # tabPanel
                
-               tabPanel(
+               , tabPanel(
                  'Plan', icon = icon("calendar")
                  , tabsetPanel(
                    tabPanel("Calendar"
@@ -73,17 +61,31 @@ shinyUI(
                  # , DT::dataTableOutput("analytics_dt")
                ),
                tabPanel(
-                 'About/Help', icon = icon("question-circle"),
-                 fluidPage(
-                     h1("What is this?")
-                     , p("This web application helps users choose and create simple meals.")
-                     , h1("Resources")
-                     , tags$ul(
-                       tags$li(tags$b("Research:")," ")
-                       , tags$li(tags$b("More Detailed:")," ")
-                       , tags$li(tags$b("Advanced Topics:")," ")
-                     )
-                   ))
+                 'About/Help', icon = icon("question-circle")
+                 , sidebarLayout(
+                   sidebarPanel(
+                     box(width = 12,collapsible = FALSE, collapsed = FALSE,
+                           title = "Site Administrator",
+                           p(strong("Name: "),"Noah Pollock"),
+                           p(strong("Email: "),"noahpollock@mycompany.com"))
+                     , box(width = 12,collapsible = FALSE, collapsed = FALSE,
+                           title = "Data Policy",
+                           p("The data entered on this site is retained in a private Google Sheet and is 
+            used exclusively for providing access to and maintaining the full functionality of this site. 
+            Data entered is never deliberately shared or distributed beyond individual users gaining access. 
+            Please contact the Site Administrator for more information or to request that 
+            your data be deleted."))
+                   )
+                   , mainPanel(h1("What is this?")
+                               , p("This web application helps users choose and create simple meals.")
+                                , h1("Resources")
+                                , tags$ul(
+                                  tags$li(tags$b("Research:")," ")
+                                  , tags$li(tags$b("More Detailed:")," ")
+                                  , tags$li(tags$b("Advanced Topics:")," "))
+                 ) # mainPanel
+                     ) # sideBarLayout
+                   ) # tabPanel
                , tabPanel('Source Code',icon = icon("sign-out"),tags$style("float: right;"))
     )
   ))

@@ -16,7 +16,12 @@ gs4_deauth() # query Google Sheets without authenticating as a user.
 ss <- "https://docs.google.com/spreadsheets/d/1_n0pWIyRXhggoUIzoMC12mwhB-LlCeXD5GaQFXrrpsA/edit?usp=sharing"
 food.df <- read_sheet(ss,"Food")
 step.df <- read_sheet(ss,"Step")
-type.df <- read_sheet(ss,"Type")
+# mealtype.df <- read_sheet(ss,"MealType")
+
+# bring in derived / calculated columns
+v.food.df <- food.df %>%
+  left_join(step.df %>% group_by(Food_ID) %>% summarise(total_time = sum(Time))
+            , by = c("ID" = "Food_ID"))
 
 # if I want to write or read private sheet
 # https://stackoverflow.com/questions/63535190/connect-to-googlesheets-via-shiny-in-r-with-googlesheets4
@@ -34,17 +39,18 @@ dt_header <- JS(
 
 # options -----------------------------------------------------------
 options(shiny.maxRequestSize=1000^3,
-        shiny.sanitize.errors = TRUE,
-        # shiny.trace = TRUE, # print to R console?
-        DT.options = list(
+        shiny.sanitize.errors = TRUE
+        # , shiny.trace = TRUE # print to R console?
+        , DT.options = list(
           initComplete = dt_header
-          , pageLength = 25
-          , lengthMenu = c(5,20,50)
-          , bPaginate=TRUE
-          # bFilter=FALSE,
-          # searching=FALSE,
-          # ordering=FALSE,
-          # dom = 't'
-        ))
+        #   , pageLength = 25
+        , lengthMenu = c(5,20,50)
+        #   # , bPaginate=TRUE
+        , bFilter=FALSE
+          # searching=FALSE
+        #   # ordering=FALSE,
+        #   # dom = 't'
+        )
+        )
 
 # END ------------------------------
