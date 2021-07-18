@@ -16,12 +16,26 @@ gs4_deauth() # query Google Sheets without authenticating as a user.
 ss <- "https://docs.google.com/spreadsheets/d/1_n0pWIyRXhggoUIzoMC12mwhB-LlCeXD5GaQFXrrpsA/edit?usp=sharing"
 food.df <- read_sheet(ss,"Food")
 step.df <- read_sheet(ss,"Step")
-# mealtype.df <- read_sheet(ss,"MealType")
+ingredient.df <- read_sheet(ss,"Ingredient")
+food_ing.df <- read_sheet(ss,"Food_Ingredient")
+mealtype.df <- read_sheet(ss,"MealType")
+ingredienttype.df <- read_sheet(ss,"IngredientType")
 
 # bring in derived / calculated columns
 v.food.df <- food.df %>%
-  left_join(step.df %>% group_by(Food_ID) %>% summarise(total_time = sum(Time))
-            , by = c("ID" = "Food_ID"))
+  inner_join(step.df %>% 
+               group_by(Food_ID) %>% 
+               summarise(total_time = sum(Time)
+                         , steps = n())
+            , by = c("ID" = "Food_ID")) %>%
+  inner_join(mealtype.df,by = c("MealType_ID" = "ID"))
+
+v.ingredient.df <- ""
+v.food_ing.df <- ""
+  
+
+# v.all.df <- food.df %>%
+#   inner_join(step.df,by = c("ID" = "Food_ID"))
 
 # if I want to write or read private sheet
 # https://stackoverflow.com/questions/63535190/connect-to-googlesheets-via-shiny-in-r-with-googlesheets4

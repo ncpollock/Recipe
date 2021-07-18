@@ -8,7 +8,7 @@ shinyServer(function(input, output, session) {
         
         tdata <- v.food.df %>%
             # filter(Meal_Prep == input$meal_prep, total_time < input$total_time) %>%
-            select(-MealType_ID) %>%
+            select(-MealType_ID,-Serving,-MealType) %>%
             # mutate Meal_Prep as an icon
             relocate(Description, .after = last_col())
 
@@ -16,8 +16,10 @@ shinyServer(function(input, output, session) {
                   , colnames = c('Meal',
                                'Good for Meal Prep?', # max this an Icon!
                                'Prep + Cook Time (Minutes)',
+                               'Steps',
                                'Description')
-                  , list(columnDefs = list(list(visible=FALSE, targets=0)))
+                  , list(searching = TRUE
+                         , columnDefs = list(list(visible=FALSE, targets=0)))
                   ) %>%
                 formatStyle(
                     'total_time',
@@ -26,7 +28,7 @@ shinyServer(function(input, output, session) {
                     backgroundSize = '100% 45%',
                     backgroundRepeat = 'no-repeat',
                     backgroundPosition = 'left') %>%
-            formatStyle(columns = "Name",
+            formatStyle(columns = "Food",
                         color = 'black',
                         fontWeight = 'bold') %>%
             formatStyle(names(tdata), 'vertical-align'='top')
@@ -41,7 +43,7 @@ shinyServer(function(input, output, session) {
             relocate(Number, .after = ID) %>%
             arrange(Number)
         
-        datatable(tdata, rownames = FALSE, selection = 'single', escape = FALSE
+        datatable(tdata, rownames = FALSE, selection = 'none', escape = FALSE
                   , colnames = c('Number',
                                  'Time', # max this an Icon!
                                  'Instruction')
