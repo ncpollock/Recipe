@@ -25,7 +25,7 @@ shinyServer(function(input, output, session) {
                     'total_time',
                     background = styleColorBar(range(0,max(tdata$total_time)), 'blue'),
                     align = 'bottom',
-                    backgroundSize = '100% 45%',
+                    backgroundSize = '100% 85%',
                     backgroundRepeat = 'no-repeat',
                     backgroundPosition = 'left') %>%
             formatStyle(columns = "Food",
@@ -36,6 +36,10 @@ shinyServer(function(input, output, session) {
     })
     
     output$steps <- renderDT({
+        
+        validate(
+            need(food.df$ID[input$recipes_rows_selected] > 0
+            , "Select a food item to see cooking steps!"))
         
         tdata <- step.df %>%
             filter(Food_ID == food.df$ID[input$recipes_rows_selected]) %>%
@@ -50,6 +54,7 @@ shinyServer(function(input, output, session) {
                   , options = list(
                       pageLength = nrow(tdata)
                       , ordering=FALSE
+                      , dom = 't'
                       , columnDefs = list(list(visible=FALSE, targets=0)))
         ) %>%
             formatStyle(
@@ -65,6 +70,35 @@ shinyServer(function(input, output, session) {
                         fontSize = '24px'
                         ) %>%
             formatStyle(names(tdata), 'vertical-align'='top')
+        
+    })
+    
+    output$ingredients <- renderDT({
+        
+        validate(
+            need(food.df$ID[input$recipes_rows_selected] > 0
+                 , "Select a food item to see ingredients!"))
+        
+        tdata <- v.food_ing.df %>%
+            filter(Food_ID == food.df$ID[input$recipes_rows_selected]) %>%
+            # would need to perform any adjustments here for serving size changes?
+            select(IngredientType, Ingredient, Measurement, QTY)
+        
+        datatable(tdata, rownames = FALSE, selection = 'none', escape = FALSE
+                  , colnames = c('Type' # make this icon
+                                 , 'Ingredient' 
+                                 , 'Measure'
+                                 , 'Amount')
+                  , options = list(
+                      pageLength = nrow(tdata)
+                      , ordering=FALSE
+                      , dom = 't')
+        ) %>%
+            formatStyle(columns = c("IngredientType", "Ingredient"),
+                        color = 'black',
+                        fontWeight = 'bold',
+                        fontSize = '24px'
+            )
         
     })
     

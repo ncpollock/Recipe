@@ -11,20 +11,21 @@ shinyUI(
                , windowTitle = "Recipes",
                # , footer = div(id="site-footer")
                tabPanel(
-                 'Browse', icon = icon("user")
-                 , sidebarLayout(
-                   sidebarPanel(
-                     h1("Filters:")
-                     , textInput('meal_search',
-                               'Search for a meal',
-                               # value = 'chicken', # predefined value for testing
-                               placeholder = 'chicken')
-                     , sliderInput('total_time','Prep + Cook Time',0,100,20,step = 5)
+                 'Browse', icon = icon("search")
+                 , fluidPage(
+                   fluidRow(style = "background-color: #0892d0;" # id="filters",class="sticky"
+                     , column(2,h1("Filters:"))
+                     , column(2,selectInput("MealType", label="Meal Type",
+                                   choices = mealtype.df$MealType, 
+                                   selected = mealtype.df$MealType[3]))
+                     , column(3,sliderInput('total_time','Prep + Cook Time',0,100,20,step = 5))
                    )
-                   , mainPanel(DTOutput("recipes")
-                               , DTOutput("steps")
+                   , fluidRow(DTOutput("recipes"))
+                   , fluidRow(column(6,DTOutput("ingredients"))
+                              , column(6,DTOutput("steps"))
                                ) # mainPanel
-                 )) # tabPanel
+                 ) # fluidPage
+                 ) # tabPanel
                
                , tabPanel(
                  'Plan', icon = icon("calendar")

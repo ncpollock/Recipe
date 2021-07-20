@@ -30,8 +30,10 @@ v.food.df <- food.df %>%
             , by = c("ID" = "Food_ID")) %>%
   inner_join(mealtype.df,by = c("MealType_ID" = "ID"))
 
-v.ingredient.df <- ""
-v.food_ing.df <- ""
+# v.ingredient.df <- ""
+v.food_ing.df <- food_ing.df %>%
+  inner_join(ingredient.df, by = c("Ingredient_ID" = "ID")) %>%
+  inner_join(ingredienttype.df, by = c("IngredientType_ID" = "ID"))
   
 
 # v.all.df <- food.df %>%
@@ -43,7 +45,8 @@ v.food_ing.df <- ""
 
 # global stylings ----------------------------------
 # https://shiny.rstudio.com/articles/themes.html
-
+# light_electric_blue <- "#7DF9FF"
+electric_blue <- "#0892d0"
 
 # style the Data Tables header.
 dt_header <- JS(
