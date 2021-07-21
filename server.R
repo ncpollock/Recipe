@@ -1,4 +1,10 @@
 # SERVER START -------------------------------------
+
+#TO-DO --------
+# need to fix
+    # food.df$ID[input$recipes_rows_selected]
+        # fix selecting the appropriate food when table is filtered or sorted
+
 shinyServer(function(input, output, session) {
     
     # bs_themer() # for testing shiny themes
@@ -7,7 +13,10 @@ shinyServer(function(input, output, session) {
     output$recipes <- renderDT({
         
         tdata <- v.food.df %>%
-            # filter(Meal_Prep == input$meal_prep, total_time < input$total_time) %>%
+            filter(MealType == input$MealType
+                   | input$MealType == "All") %>%
+            filter(total_time <= input$total_time) %>%
+            # filter(Meal_Prep == input$meal_prep) %>%
             select(-MealType_ID,-Serving,-MealType) %>%
             # mutate Meal_Prep as an icon
             relocate(Description, .after = last_col())
@@ -81,10 +90,12 @@ shinyServer(function(input, output, session) {
         
         tdata <- v.food_ing.df %>%
             filter(Food_ID == food.df$ID[input$recipes_rows_selected]) %>%
+            mutate(IngredientType = paste0("<i class='fa fa-",icon
+                                           ,"' style='color:",color,";'></i>")) %>%
             # would need to perform any adjustments here for serving size changes?
             select(IngredientType, Ingredient, Measurement, QTY)
         
-        datatable(tdata, rownames = FALSE, selection = 'none', escape = FALSE
+        datatable(tdata, rownames = FALSE, selection = 'none', escape = -0
                   , colnames = c('Type' # make this icon
                                  , 'Ingredient' 
                                  , 'Measure'

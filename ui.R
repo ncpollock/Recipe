@@ -16,9 +16,9 @@ shinyUI(
                    fluidRow(style = "background-color: #0892d0;" # id="filters",class="sticky"
                      , column(2,h1("Filters:"))
                      , column(2,selectInput("MealType", label="Meal Type",
-                                   choices = mealtype.df$MealType, 
-                                   selected = mealtype.df$MealType[3]))
-                     , column(3,sliderInput('total_time','Prep + Cook Time',0,100,20,step = 5))
+                                   choices = c('All',mealtype.df$MealType), 
+                                   selected = 'All')) # mealtype.df$MealType[3]
+                     , column(3,sliderInput('total_time','Prep + Cook Time',10,max(v.food.df$total_time),59,step = 5))
                    )
                    , fluidRow(DTOutput("recipes"))
                    , fluidRow(column(6,DTOutput("ingredients"))
