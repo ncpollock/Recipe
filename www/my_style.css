@@ -1,0 +1,39 @@
+/* not in use
+.sticky {
+  position: sticky;
+  top: 0;
+  background-color: gray;
+  padding: 5px;
+  padding-top: 10px;
+  z-index:999;
+  border: 1px solid #212121;
+  box-shadow: 5px 5px 5px #404040;
+}
+*/
+
+/* simple footer to style with a <div>id="site-footer"</div> */
+#site-footer {
+  margin-top: 50px; /* space between content and footer */
+	background: $secondary center no-repeat;
+	border-top: 3px solid black;
+	text-align: left;
+	vertical-align: middle;
+	-moz-background-size: cover;
+	-webkit-background-size: cover;
+	-o-background-size: cover;
+	background-size: cover;  
+  padding-top: 25px; 
+  padding-bottom: 5%; 
+  padding-left: 5%;
+  box-shadow: 0 50vh 0 50vh $secondary; /*#375a7f; */
+}
+
+/* my face in upper right */
+#face-img {
+  border-radius: 70%;
+  border: 1px solid #ddd;
+  padding: 3px;
+  margin-left: 10px;
+  width:50px; /* you can use % */
+  height: auto;
+}  

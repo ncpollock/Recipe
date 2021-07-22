@@ -43,7 +43,7 @@ v.food_ing.df <- food_ing.df %>%
 # https://stackoverflow.com/questions/63535190/connect-to-googlesheets-via-shiny-in-r-with-googlesheets4
 # https://googlesheets4.tidyverse.org/articles/articles/auth.html
 
-# global stylings ----------------------------------
+# stylings ----------------------------------
 # https://shiny.rstudio.com/articles/themes.html
 # light_electric_blue <- "#7DF9FF"
 electric_blue <- "#0892d0"
@@ -53,6 +53,34 @@ dt_header <- JS(
   "function(settings, json) {",
   "$(this.api().table().header()).css({'background-color': '#252525', 'color': '#FFFFFF'});",
   "}")
+
+site_footer <- div(id="site-footer"
+                   , p(strong("Developed by: "),
+                       br(),
+                       a(href="https://ncpollock.github.io/"
+                        ,target="_blank"
+                        ,"Noah C. Pollock"),
+                       br(),
+                       a(href = "https://github.com/ncpollock/"
+                        ,target="_blank"
+                        ,"Code on GitHub"),
+                       align="center"))
+
+my_navbar_info <- gsub("[\r\n]", "",
+                       div(
+                         a(href="https://ncpollock.github.io/"
+                           ,target="_blank"
+                           , img(src="headshot.jpg",id="face-img",align="right"))
+                         # icon("user fa-pull-right fa-3x") # generic user icon instead of my face
+                         , strong("Developed by: "),
+                         br(),
+                         a(href="https://ncpollock.github.io/"
+                           ,target="_blank"
+                           ,"Noah C. Pollock")
+                         ,style = "float:right;padding-top:5px;white-space:nowrap;"))
+
+my_navbar_script <- HTML(paste0("var header = $('.navbar> .container-fluid');header.append('"
+       , my_navbar_info,"');console.log(header)"))
 
 # options -----------------------------------------------------------
 options(shiny.maxRequestSize=1000^3,

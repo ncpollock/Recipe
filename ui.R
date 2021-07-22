@@ -1,26 +1,31 @@
 # START --------------------------------------------------
 shinyUI(
   tagList(
-    # tags$link(rel = "stylesheet", type = "text/css", href = "my_style.css")
-    navbarPage(id = "tabs"
+    tags$link(rel = "stylesheet", type = "text/css", href = "my_style.css")
+    , navbarPage(id = "tabs"
                # theme = shinytheme("cosmo"),
-               # , theme = bs_theme() 
-               , theme = bs_theme(bootswatch = "cosmo", bg = "white", fg = "#131D2D")
+               , theme = bs_theme(bootswatch = "cosmo"
+                                  , bg = "white"
+                                  , fg = "#131D2D"
+                                  , primary = 'orange'
+                                  # , dark = 'red'
+                                  )
                # title = p(strong("REM"),style=paste0("color:",c_1)),
                , title = "Recipes"
-               , windowTitle = "Recipes",
-               # , footer = div(id="site-footer")
-               tabPanel(
+               , windowTitle = "Recipes"
+               # , footer = site_footer
+               , tabPanel(
                  'Browse', icon = icon("search")
-                 , fluidPage(
-                   fluidRow(style = "background-color: #0892d0;" # id="filters",class="sticky"
-                     , column(2,h1("Filters:"))
-                     , column(2,selectInput("MealType", label="Meal Type",
-                                   choices = c('All',mealtype.df$MealType), 
-                                   selected = 'All')) # mealtype.df$MealType[3]
-                     , column(3,sliderInput('total_time','Prep + Cook Time',10,max(v.food.df$total_time),59,step = 5))
-                   )
-                   , fluidRow(DTOutput("recipes"))
+                 , tags$script(my_navbar_script) # adds my name in navbar
+                 , fluidRow(class = 'table-dark' # style = "background-color: #0892d0;" # id="filters",class="sticky"
+                           , column(2,h1("Filters:"))
+                           , column(2,selectInput("MealType", label="Meal Type",
+                                                  choices = c('All',mealtype.df$MealType), 
+                                                  selected = 'All')) # mealtype.df$MealType[3]
+                           , column(3,sliderInput('total_time','Prep + Cook Time',10,max(v.food.df$total_time),59,step = 5))
+                 )
+                 , fluidPage( # gives some padding
+                   fluidRow(DTOutput("recipes"))
                    , fluidRow(column(6,DTOutput("ingredients"))
                               , column(6,DTOutput("steps"))
                                ) # mainPanel
@@ -88,6 +93,7 @@ shinyUI(
                      ) # sideBarLayout
                    ) # tabPanel
                , tabPanel('Source Code',icon = icon("sign-out"),tags$style("float: right;"))
-    )
+    ) # navBarPage
+    , site_footer
   ))
 # END -----------------------------------------------------------------------
