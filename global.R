@@ -8,6 +8,7 @@ library(tidyr)
 library(lubridate)
 # library(shinythemes) # consider bslib instead
 library(bslib) # add bs_themer() to server
+library(shinyWidgets) # for better checkbox inputs
 
 gs4_deauth() # query Google Sheets without authenticating as a user.
 
@@ -54,7 +55,7 @@ dt_header <- JS(
   "$(this.api().table().header()).css({'background-color': '#252525', 'color': '#FFFFFF'});",
   "}")
 
-site_footer <- div(id="site-footer"
+site_footer <- div(id="site-footer",class = 'bg-dark'
                    , p(strong("Developed by: "),
                        br(),
                        a(href="https://ncpollock.github.io/"
@@ -81,6 +82,8 @@ my_navbar_info <- gsub("[\r\n]", "",
 
 my_navbar_script <- HTML(paste0("var header = $('.navbar> .container-fluid');header.append('"
        , my_navbar_info,"');console.log(header)"))
+
+i_checkmark <- "<i class='fa fa-check-circle' style='color:green;'></i>"
 
 # options -----------------------------------------------------------
 options(shiny.maxRequestSize=1000^3,

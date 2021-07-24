@@ -14,7 +14,7 @@
 /* simple footer to style with a <div>id="site-footer"</div> */
 #site-footer {
   margin-top: 50px; /* space between content and footer */
-	background: $secondary center no-repeat;
+	background: primary center no-repeat; 
 	border-top: 3px solid black;
 	text-align: left;
 	vertical-align: middle;
@@ -37,3 +37,18 @@
   width:50px; /* you can use % */
   height: auto;
 }  
+
+/* datatable selected */
+table.dataTable tr.selected td, table.dataTable td.selected {
+	background-color: black !important;
+	}
+
+/* horizontal line 
+this is not taking effect...
+*/
+hr {
+  width: 75%;
+  margin: auto;
+  height: 5px;
+  background-color: orange;
+}

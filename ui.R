@@ -10,24 +10,38 @@ shinyUI(
                                   , primary = 'orange'
                                   # , dark = 'red'
                                   )
-               # title = p(strong("REM"),style=paste0("color:",c_1)),
+               # title = p(strong("Recipes"),style=paste0("color:",c_1)),
                , title = "Recipes"
                , windowTitle = "Recipes"
                # , footer = site_footer
                , tabPanel(
                  'Browse', icon = icon("search")
                  , tags$script(my_navbar_script) # adds my name in navbar
-                 , fluidRow(class = 'table-dark' # style = "background-color: #0892d0;" # id="filters",class="sticky"
-                           , column(2,h1("Filters:"))
-                           , column(2,selectInput("MealType", label="Meal Type",
-                                                  choices = c('All',mealtype.df$MealType), 
-                                                  selected = 'All')) # mealtype.df$MealType[3]
-                           , column(3,sliderInput('total_time','Prep + Cook Time',10,max(v.food.df$total_time),59,step = 5))
-                 )
+                 , tags$table(style = "width: 100%",
+                              tags$tr(tags$td(style = "width: 15%",h1("Filters:")),
+                                      tags$td(style = "width: 25%"
+                                                # , align = "center"
+                                              , selectInput("MealType", label="Meal Type",
+                                                          choices = c('All',mealtype.df$MealType), 
+                                                          selected = 'All')),
+                                        tags$td(style = "width: 25%",sliderInput('total_time','Prep + Cook Time',10,max(v.food.df$total_time),59,step = 5)),
+                                      tags$td(style = "width: 25%",materialSwitch('meal_prep','Meal Prep Only?',status = 'primary'))
+                                      
+                                      ) # tr: table row
+                              ) # table
+                 # , fluidRow(class = 'bg-dark' # style = "background-color: #0892d0;" # id="filters",class="sticky"
+                 #           , column(2,h1("Filters:"))
+                 #           , column(2,selectInput("MealType", label="Meal Type",
+                 #                                  choices = c('All',mealtype.df$MealType), 
+                 #                                  selected = 'All')) # mealtype.df$MealType[3]
+                 #           , column(3,sliderInput('total_time','Prep + Cook Time',10,max(v.food.df$total_time),59,step = 5))
+                 #           , column(2,materialSwitch('meal_prep','Meal Prep Only?',status = 'primary'))
+                 # ) # input fluidRow
                  , fluidPage( # gives some padding
                    fluidRow(DTOutput("recipes"))
-                   , fluidRow(column(6,DTOutput("ingredients"))
-                              , column(6,DTOutput("steps"))
+                   , br(),hr(style = "width: 75%;margin: auto;height: 5px;background-color: orange;"),br()
+                   , fluidRow(column(5,DTOutput("ingredients"))
+                              , column(7,DTOutput("steps"))
                                ) # mainPanel
                  ) # fluidPage
                  ) # tabPanel
