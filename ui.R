@@ -17,7 +17,7 @@ shinyUI(
                , tabPanel(
                  'Browse', icon = icon("search")
                  , tags$script(my_navbar_script) # adds my name in navbar
-                 , tags$table(style = "width: 100%",
+                 , tags$table(style = "width: 100%",class = 'bg-dark',
                               tags$tr(tags$td(style = "width: 15%",h1("Filters:")),
                                       tags$td(style = "width: 25%"
                                                 # , align = "center"
@@ -28,7 +28,7 @@ shinyUI(
                                       tags$td(style = "width: 25%",materialSwitch('meal_prep','Meal Prep Only?',status = 'primary'))
                                       
                                       ) # tr: table row
-                              ) # table
+                              ) # input table
                  # , fluidRow(class = 'bg-dark' # style = "background-color: #0892d0;" # id="filters",class="sticky"
                  #           , column(2,h1("Filters:"))
                  #           , column(2,selectInput("MealType", label="Meal Type",
@@ -39,9 +39,10 @@ shinyUI(
                  # ) # input fluidRow
                  , fluidPage( # gives some padding
                    fluidRow(DTOutput("recipes"))
-                   , br(),hr(style = "width: 75%;margin: auto;height: 5px;background-color: orange;"),br()
-                   , fluidRow(column(5,DTOutput("ingredients"))
-                              , column(7,DTOutput("steps"))
+                   , br(),hr(style = "width: 85%;margin: auto;height: 5px;background-color: orange;"),br()
+                   , uiOutput('servingUI')
+                   , fluidRow(DTOutput("ingredients")
+                              , DTOutput("steps")
                                ) # mainPanel
                  ) # fluidPage
                  ) # tabPanel

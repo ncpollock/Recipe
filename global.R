@@ -101,4 +101,40 @@ options(shiny.maxRequestSize=1000^3,
         )
         )
 
+
+# FUNCTIONS ------------------------------------------------------------
+
+conversion.df <- data.frame(
+  measure = c('Millileter'
+              ,'Teaspoon'
+              ,'Tablespoon'
+              ,'Ounce'
+              ,'Cup'
+              ,'Pint'
+              ,'Quart'
+              ,'Gallon'
+  )
+  , value = c(3785.41,768,256,128,16,8,4,1)
+)
+
+
+m.conv <- function(i.value,i.measure = 'Cup'){
+  # convert between measures of volume
+  # i.value = 1, i.measure = 'Cup'
+  
+  conv.value = (conversion.df %>%
+    filter(measure == i.measure) %>%
+    mutate(conv.value = i.value/value))$conv.value
+  
+  conversion.df %>%
+    filter(measure != i.measure) %>%
+    mutate(value = round(conv.value*value,2))
+  
+}
+
+
+
+
+
+
 # END ------------------------------

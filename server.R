@@ -1,15 +1,7 @@
 # SERVER START -------------------------------------
 
-#TO-DO --------
+#TO-DO
 # need to fix
-    # food.df$ID[input$recipes_rows_selected]
-        # fix selecting the appropriate food when table is filtered or sorted
-        # need to create reactive dataframes like I did in FDS dashboard
-        # so I can reuse dataframes affected by main filters.
-# v.food.df %>%
-#     filter(MealType == input$MealType
-#            | input$MealType == "All") %>%
-#     filter(total_time <= input$total_time)
 # build
     # a measurement conversion modal dialog
         # when any quantity is hovered, see many conversions!
@@ -34,6 +26,19 @@ shinyServer(function(input, output, session) {
             filter(total_time <= input$total_time)
         
         v.food.df
+    })
+    
+    v.food_ing.df.r <- reactive({
+        s_food <- v.food.df.r()[input$recipes_rows_selected,]
+        
+        v.food_ing.df <- v.food_ing.df %>%
+            filter(Food_ID == s_food$ID) %>%
+            mutate(IngredientType = paste0("<i class='fa fa-",icon
+                                           ,"' style='color:",color,";'></i>")
+                   , amount = QTY*QTY_Multiplier*(input$servings/s_food$Serving)
+                   , amount_desc = paste(amount,Measurement,sep = ' - ')) 
+        
+        v.food_ing.df
     })
     
 # browse -------------------------------------------------------------------------------
@@ -70,7 +75,13 @@ shinyServer(function(input, output, session) {
                         fontWeight = 'bold') %>%
             formatStyle(names(tdata), verticalAlign='middle')
      
-    })
+    }) # recipes
+    
+    
+    output$servingUI <- renderUI({
+        numericInput('servings','Servings',v.food.df.r()$Serving[input$recipes_rows_selected]
+                     ,1,20)
+    }) # servingUI
     
     output$steps <- renderDT({
         
@@ -88,10 +99,12 @@ shinyServer(function(input, output, session) {
                   , colnames = c('Number',
                                  # 'Time',
                                  'Instruction')
+                  , extensions = 'Buttons'
                   , options = list(
                       pageLength = nrow(tdata)
                       , ordering = FALSE
-                      , dom = 't'
+                      , buttons = c('copy')
+                      , dom = 'tB'
                       , columnDefs = list(list(visible=FALSE, targets=0) # hide first column
                                           , list(className = 'dt-center',targets = 1) # center second column
                                           ))
@@ -102,29 +115,26 @@ shinyServer(function(input, output, session) {
                         fontSize = '150%'
                         ) 
         
-    })
+    }) # steps
     
     output$ingredients <- renderDT({
         
         validate(
             need(input$recipes_rows_selected > 0
                  , "Select a food item to see ingredients!"))
+
+        tdata <- v.food_ing.df.r() %>%
+            select(IngredientType, Ingredient, amount_desc)
         
-        tdata <- v.food_ing.df %>%
-            filter(Food_ID == v.food.df.r()$ID[input$recipes_rows_selected]) %>%
-            mutate(IngredientType = paste0("<i class='fa fa-",icon
-                                           ,"' style='color:",color,";'></i>")
-                   , amount = paste(QTY,Measurement,sep = ' - ')) %>%
-            # would need to perform any adjustments here for serving size changes?
-            select(IngredientType, Ingredient, amount)
-        
-        datatable(tdata, rownames = FALSE, selection = 'none', escape = -0
+        datatable(tdata, rownames = FALSE
+                  , selection = 'single'
+                  , escape = -0
                   , colnames = c('Type' # make this icon
                                  , 'Ingredient' 
                                  , 'Amount')
                   , options = list(
                       pageLength = nrow(tdata)
-                      , initComplete = NA
+                      # , initComplete = NA to remove header stylings
                       , ordering=FALSE
                       , dom = 't')
         ) %>%
@@ -134,7 +144,43 @@ shinyServer(function(input, output, session) {
                         fontSize = '150%'
             )
         
+    }) # ingredients
+    
+    output$conversions <- renderDT({
+        
+        # subset for selected ingredient
+        ing.r <- v.food_ing.df.r()[input$ingredients_rows_selected,]
+        
+        # only show conversion when a conversion exists.
+        validate(
+            need(ing.r$Measurement %in% conversion.df$measure
+                 , "There are no conversions available for this measurement."))
+
+        
+        # generate conversion table
+        tdata <- m.conv(ing.r$amount
+                        , ing.r$Measurement)
+        
+        datatable(tdata, rownames = FALSE
+                  , selection = 'none'
+                  # , colnames = c('Type'
+                  #                , 'Amount')
+                  , options = list(
+                      pageLength = nrow(tdata)
+                      # , initComplete = NA to remove header stylings
+                      , ordering=FALSE
+                      , dom = 't'))
     })
+    
+    # show measurement conversions
+    observeEvent(input$ingredients_rows_selected, {
+        # when DT ingredients row is clicked
+        showModal(modalDialog(
+            title = "Measurement Conversions",
+            DTOutput('conversions'),
+            easyClose = TRUE
+        ))
+    }) # observeEvent
     
 })
 # END ------------------------
