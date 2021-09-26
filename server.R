@@ -3,8 +3,7 @@
 #TO-DO
 # need to fix
 # build
-    # a measurement conversion modal dialog
-        # when any quantity is hovered, see many conversions!
+    # tooltip for meal description instead of column on table.
 
 shinyServer(function(input, output, session) {
     
@@ -48,17 +47,19 @@ shinyServer(function(input, output, session) {
         tdata <- v.food.df.r() %>%
             select(-MealType_ID,-Serving,-MealType) %>%
             mutate(Meal_Prep = ifelse(Meal_Prep == 1,i_checkmark, NA)) %>%
-            relocate(Description, .after = last_col())
+            select(-Description)
+            # relocate(Description, .after = last_col())
 
         datatable(tdata, rownames = FALSE
                   , selection = list(mode = 'single',target = 'row',selected = 1)
                   , escape = FALSE
                   # , class = 'bg-dark'
-                  , colnames = c('Meal',
+                  , colnames = c('Food',
                                'Good for Meal Prep?', # make this an Icon!
                                'Prep + Cook Time (Minutes)',
-                               'Steps',
-                               'Description')
+                               'Steps'
+                               # , 'Description'
+                               )
                   , list(searching = TRUE
                          , columnDefs = list(list(visible=FALSE, targets=0)))
                   ) %>%
