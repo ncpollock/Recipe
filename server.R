@@ -7,7 +7,15 @@
 
 shinyServer(function(input, output, session) {
     
+    observe({
+        session$onSessionEnded(function() {
+           gs4_deauth() # sign out of googlesheets4?
+        })})
+    
     # bs_themer() # for testing shiny themes
+    
+    # values to track for changes and trigger actions
+    rv <- reactiveValues()
     
     v.food.df.r <- reactive({
         
@@ -182,7 +190,95 @@ shinyServer(function(input, output, session) {
             easyClose = TRUE
         ))
     }) # observeEvent
+
+# Sign-In ###############################################
+# Sign-Out tab ######################################################################################
+
+    # hide all admin tabs until sign in
+    observe({
+        if(input$sign_in == 0 | is.null(input$sign_in)){
+            hideTab(inputId = "admin_tabs", target = 'Food')
+            hideTab(inputId = "admin_tabs", target = 'Ingredients')
+            hideTab(inputId = "admin_tabs", target = 'Steps')
+            
+            # should put insertUI here to add bland user icon, then observe sign in to swap with user image!
+        } else {
+            showModal(modalDialog(
+                title = "Did you succesfully sign in with Google?"
+                # img(src=paste0(input$username, ".jpg"),class="user-img"),
+                , p("Logged in as: ",gs4_user())
+                , width = "100%"
+                , easyClose = FALSE
+                , footer = div(
+                    actionButton('sign_in_success','Yes, it worked!')
+                    , actionButton('sign_in_fail',icon = icon("exclamation-triangle")
+                                   ,'No, I am not signed in',class = "btn-warning"))
+            )) # showModal
+        }
+    })
     
-})
+observeEvent(input$sign_in, {
+    gs4_deauth()
+    gs4_auth(email = input$gmail)
+})    
+
+observeEvent(input$sign_in_success, {
+    rv$user <- gs4_user()
+    
+    # remove login section
+    removeUI("#sign-in",immediate = TRUE)
+    
+    # insert user email in navbar to indicate logged in user
+    insertUI(
+        selector = "#tabs",
+        where = "afterEnd",
+        ui = div(id = "logged-user"
+                 , column(8,strong("Logged in as: "),br()
+                          , rv$user,style = "padding-top:2px;")
+                 , style = "color:white;float:right;padding-top:5px;white-space:nowrap;")
+    )
+    
+    # close the modal window
+    removeModal()
+}) 
+
+observeEvent(input$sign_in_fail, {
+    # close the modal window
+    removeModal()
+}) 
+
+# when user changes
+observeEvent(rv$user, {
+    # if authenticated as Steph or I
+    if(gs4_user() %in% c('ncpolloc@gmail.com','slfagan1103@gmail.com')){
+        showTab(inputId = "admin_tabs", target = 'Food')
+        showTab(inputId = "admin_tabs", target = 'Ingredients')
+        showTab(inputId = "admin_tabs", target = 'Steps')
+    }
+}) 
+
+
+
+# observeEvent(input$tabs,{
+#     if(input$tabs == "admin") {2
+#         # Authenticate into Googlesheets for edit privileges
+#         gs4_deauth()
+#         
+#     } else if(input$tabs == "out") {
+#         # sign out
+#         gs4_deauth()
+#         
+#         # tell user they've logged out.
+#         showModal(modalDialog(
+#             title = div(icon("check-circle-o"),style = "color: green;"," You have signed out!"),
+#             style = 'background-color:lightGreen;',
+#             footer = NULL,
+#             easyClose = TRUE
+#         ))
+#     }
+#     }) # observer tabs
+
+
+}) # shinyServer 
 # END ------------------------
 

@@ -18,29 +18,6 @@ shinyUI(
                , tabPanel(
                  'Browse', icon = icon("search")
                  , tags$script(my_navbar_script) # adds my name in navbar
-                 # , tags$div(
-                 #              class = 'full_width',
-                 #              box(solidHeader = TRUE,width=12,title = "Filters:",status = "success",
-                 #                      box(width = 4,selectInput("MealType", label="Meal Type",
-                 #                                          choices = c('All',mealtype.df$MealType), 
-                 #                                          selected = 'All')),
-                 #                        box(width = 4,sliderInput('total_time','Prep + Cook Time',10,max(v.food.df$total_time),59,step = 5)),
-                 #                      box(width = 4,materialSwitch('meal_prep','Meal Prep Only?',status = 'primary'))
-                 #                      ) # Filter box
-                 #              ) # input table
-                 # , tags$table(#style = "width: 100%; margin: 0; padding: 0;",
-                 #   class = 'full_width bg-info',
-                 #   tags$tr(tags$td(style = "width: 15%"#,h1("Filters:")
-                 #                   ),
-                 #           tags$td(style = "width: 25%"
-                 #                   # , align = "center"
-                 #                   , selectInput("MealType", label="Meal Type",
-                 #                                 choices = c('All',mealtype.df$MealType),
-                 #                                 selected = 'All')),
-                 #           tags$td(style = "width: 25%",sliderInput('total_time','Prep + Cook Time',10,max(v.food.df$total_time),59,step = 5)),
-                 #           tags$td(style = "width: 25%",materialSwitch('meal_prep','Meal Prep Only?',status = 'primary'))
-                 #   ) # tr: table row
-                 # ) # input table
                  , fluidRow(class = 'bg-info'
                            , column(2,h1("Filters:"))
                            , column(2,selectInput("MealType", label="Meal Type",
@@ -59,7 +36,7 @@ shinyUI(
                               , DTOutput("steps")
                                ) # mainPanel
                  ) # fluidPage
-                 ) # tabPanel
+                 ) # tabPanel Browse
                
                # , tabPanel(
                #   'Plan', icon = icon("calendar")
@@ -101,8 +78,9 @@ shinyUI(
                    sidebarPanel(
                      box(width = 12,collapsible = FALSE, collapsed = FALSE,
                            title = "Site Administrator",
-                           p(strong("Name: "),"Noah Pollock"),
-                           p(strong("Email: "),"REDACTED"))
+                           p(strong("Name: "),"Noah Pollock")
+                           # ,p(strong("Email: "),"REDACTED")
+                         )
                      , box(width = 12,collapsible = FALSE, collapsed = FALSE,
                            title = "Data Policy",
                            p("The data entered on this site is retained in a public Google Sheet and is 
@@ -120,6 +98,23 @@ shinyUI(
                  ) # mainPanel
                      ) # sideBarLayout
                    ) # tabPanel
+               , tabPanel('Admin.',icon = icon("tools"),value = "admin"
+                          #tabbox with 'Food','Ingredients','Steps'
+                          , div(id = "sign-in",textInput('gmail',HTML(paste(icon("user-circle"),'Enter GMail Address:')),
+                                      placeholder = 'Enter your Google Email...')
+                          # , passwordInput('password',HTML(paste(icon("lock"),'Password')),
+                          #                 placeholder = 'Enter your password...')
+                          , actionButton("sign_in", "Sign In to GMail", icon = icon("unlock-alt"))
+                          ) # div
+                          , tabsetPanel(id = "admin_tabs"
+                            , tabPanel("Food"
+                                    # inputs for everything needed to add food
+                                    # button to add food
+                                     )
+                            , tabPanel("Ingredients")
+                            , tabPanel("Steps")
+                          )
+                         ) # tabPanel admin
                , tabPanel('Source Code',icon = icon("sign-out"),tags$style("float: right;"),p("To be added..."))
     ) # navBarPage
     , site_footer
