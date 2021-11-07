@@ -202,27 +202,16 @@ shinyServer(function(input, output, session) {
             hideTab(inputId = "admin_tabs", target = 'Steps')
             
             # should put insertUI here to add bland user icon, then observe sign in to swap with user image!
-        } else {
-            showModal(modalDialog(
-                title = "Did you succesfully sign in with Google?"
-                # img(src=paste0(input$username, ".jpg"),class="user-img"),
-                , p("Logged in as: ",gs4_user())
-                , width = "100%"
-                , easyClose = FALSE
-                , footer = div(
-                    actionButton('sign_in_success','Yes, it worked!')
-                    , actionButton('sign_in_fail',icon = icon("exclamation-triangle")
-                                   ,'No, I am not signed in',class = "btn-warning"))
-            )) # showModal
         }
     })
     
 observeEvent(input$sign_in, {
-    gs4_deauth()
-    gs4_auth(email = input$gmail)
-})    
-
-observeEvent(input$sign_in_success, {
+    if(input$admin_pass == readLines("plain.txt", warn = FALSE)){
+        gs4_deauth()
+        gs4_auth( # email = input$gmail
+                 email = TRUE
+                 )
+        
     rv$user <- gs4_user()
     
     # remove login section
@@ -233,31 +222,25 @@ observeEvent(input$sign_in_success, {
         selector = "#tabs",
         where = "afterEnd",
         ui = div(id = "logged-user"
-                 , column(8,strong("Logged in as: "),br()
-                          , rv$user,style = "padding-top:2px;")
+                 , column(8,strong("Logged in as:"),br()
+                          , rv$user)
                  , style = "color:white;float:right;padding-top:5px;white-space:nowrap;")
     )
     
-    # close the modal window
-    removeModal()
+    showTab(inputId = "admin_tabs", target = 'Food')
+    showTab(inputId = "admin_tabs", target = 'Ingredients')
+    showTab(inputId = "admin_tabs", target = 'Steps')
+    
+    } else { 
+        showModal(modalDialog(
+            title = "Invalid Password!"
+            , icon("exclamation-triangle")
+            , width = "100%"
+            , easyClose = TRUE
+        )) # showModal
+    } # else
+
 }) 
-
-observeEvent(input$sign_in_fail, {
-    # close the modal window
-    removeModal()
-}) 
-
-# when user changes
-observeEvent(rv$user, {
-    # if authenticated as Steph or I
-    if(gs4_user() %in% c('ncpolloc@gmail.com','slfagan1103@gmail.com')){
-        showTab(inputId = "admin_tabs", target = 'Food')
-        showTab(inputId = "admin_tabs", target = 'Ingredients')
-        showTab(inputId = "admin_tabs", target = 'Steps')
-    }
-}) 
-
-
 
 # observeEvent(input$tabs,{
 #     if(input$tabs == "admin") {2

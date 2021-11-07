@@ -100,22 +100,25 @@ shinyUI(
                    ) # tabPanel
                , tabPanel('Admin.',icon = icon("tools"),value = "admin"
                           #tabbox with 'Food','Ingredients','Steps'
-                          , div(id = "sign-in",textInput('gmail',HTML(paste(icon("user-circle"),'Enter GMail Address:')),
-                                      placeholder = 'Enter your Google Email...')
-                          # , passwordInput('password',HTML(paste(icon("lock"),'Password')),
-                          #                 placeholder = 'Enter your password...')
-                          , actionButton("sign_in", "Sign In to GMail", icon = icon("unlock-alt"))
+                          , div(id = "sign-in"
+                            , passwordInput('admin_pass',HTML(paste(icon("lock"),'Password')),
+                                            placeholder = 'Enter the admin password...')
+                            , actionButton("sign_in", "Sign In", icon = icon("unlock-alt"))
                           ) # div
                           , tabsetPanel(id = "admin_tabs"
                             , tabPanel("Food"
                                     # inputs for everything needed to add food
                                     # button to add food
-                                     )
+                                    , column(6,p("Table with Food, including a row for 'New'"))
+                                    , column(6,p("Form to add/edit Food.")
+                                             , actionButton("add_food", "Add New Food", icon = icon("unlock-alt"))
+                                    ) # column
+                                     ) # Food tabPanel
                             , tabPanel("Ingredients")
                             , tabPanel("Steps")
                           )
                          ) # tabPanel admin
-               , tabPanel('Source Code',icon = icon("sign-out"),tags$style("float: right;"),p("To be added..."))
+               , tabPanel('Source Code',icon = icon("sign-out-alt"),tags$style("float: right;"),p("To be added..."))
     ) # navBarPage
     , site_footer
   ))

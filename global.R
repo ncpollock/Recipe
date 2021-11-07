@@ -91,7 +91,7 @@ options(shiny.maxRequestSize=1000^3,
         # , shiny.trace = TRUE # print to R console?
         , DT.options = list(
           initComplete = dt_header
-        #   , pageLength = 25
+        #   , pageLength = 50
         , lengthMenu = c(5,20,50)
         #   # , bPaginate=TRUE
         , bFilter=FALSE
@@ -99,6 +99,8 @@ options(shiny.maxRequestSize=1000^3,
         #   # ordering=FALSE,
         #   # dom = 't'
         )
+        , gargle_oauth_cache = ".secrets"
+        , gargle_oob_default = TRUE # use out-of-band auth if authenticating
         )
 
 
