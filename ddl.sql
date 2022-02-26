@@ -211,14 +211,15 @@ INSERT INTO Food_Ingredient (Food_ID,Ingredient_ID,QTY,Optional) VALUES
 , (2,22,2,'f');
 
 -- Views -----------------------------------------------------------
-
 DROP VIEW v_food;
 CREATE VIEW v_food AS
-	SELECT f.* , s.total_time, ft.foodtype 
+	SELECT f.*
+	, CASE WHEN s.total_time IS NULL THEN 0 ELSE s.total_time END total_time
+	, s.steps, ft.foodtype 
 	FROM food f
-	JOIN (SELECT food_id, SUM(actiontime) total_time FROM step GROUP BY food_id) s ON
+	LEFT JOIN (SELECT food_id, SUM(actiontime) total_time, COUNT(*) steps FROM step GROUP BY food_id) s ON
 		f.id = s.food_id
-	JOIN foodtype ft ON
+	LEFT JOIN foodtype ft ON
 		ft.id = f.foodtype_id;
 
 DROP VIEW v_food_ing;
