@@ -29,5 +29,6 @@ rsconnect/
 # R Environment Variables
 .Renviron
 .secrets
+config.yml
 # other
 plain.txt
