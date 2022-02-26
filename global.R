@@ -9,11 +9,12 @@ library(bslib)
 library(shinyWidgets) # for better checkbox inputs
 library(DBI)
 
-con <- dbConnect(RPostgres::Postgres(),
-                 host = db_server,
-                 dbname = db_name,
-                 user = db_user,
-                 password = db_password)
+con_config <- config::get("dbcon")
+con <- dbConnect(con_config$driver,
+                 host = con_config$host,
+                 dbname = con_config$dbname,
+                 user = con_config$user,
+                 password = con_config$pwd)
 
 # for use in UI, this will need to be in the server eventually
   # ie when I create admin page for adding new types

@@ -85,39 +85,37 @@ shinyUI(
                          )
                      , box(width = 12,collapsible = FALSE, collapsed = FALSE,
                            title = "Data Policy",
-                           p("The data entered on this site is retained in a public Google Sheet and is 
+                           p("The data entered on this site is retained in a cloud-hosted database and is 
             used exclusively for providing access to and maintaining the full functionality of this site. 
-            Please contact the Site Administrator for more information or to request that 
-            data be deleted or modified."))
+            Anyone is free to benefit from the published recipes on this site; however, only authorized users
+                             are permitted to add, edit, or delete recipe information."))
                    )
                    , mainPanel(h1("What is this?")
-                               , p("This web application helps users choose and create simple meals.")
+                               , p("This web application helps people choose and create simple meals.")
                                 , h1("Resources")
                                 , tags$ul(
-                                  tags$li(tags$b("Research:")," ")
-                                  , tags$li(tags$b("More Details:")," ")
-                                  , tags$li(tags$b("Advanced Topics:")," "))
+                                  tags$li("NIH Food Groups",href = "https://www.nia.nih.gov/health/know-your-food-groups")
+                                  , tags$li("Where to Find Other Recipes",href = "https://www.google.com")
+                                  )
                  ) # mainPanel
                      ) # sideBarLayout
                    ) # tabPanel
                , tabPanel('Admin.',icon = icon("tools"),value = "admin"
                           #tabbox with 'Food','Ingredients','Steps'
                           , div(id = "sign-in"
+                                , textInput('username',HTML(paste(icon("user-circle"),'Username')),
+                                            placeholder = 'Enter your username...')
                             , passwordInput('admin_pass',HTML(paste(icon("lock"),'Password')),
-                                            placeholder = 'Enter the admin password...')
+                                            placeholder = 'Enter your password...')
                             , actionButton("sign_in", "Sign In", icon = icon("unlock-alt"))
                           ) # div
                           , tabsetPanel(id = "admin_tabs"
-                            , tabPanel("Food"
-                                    # inputs for everything needed to add food
-                                    # button to add food
-                                    , column(6,p("Table with Food, including a row for 'New'"))
-                                    , column(6,p("Form to add/edit Food.")
-                                             , actionButton("add_food", "Add New Food", icon = icon("unlock-alt"))
-                                    ) # column
+                            , tabPanel("Food Type"
+                                    , p("List of food types and the ability to add, edit, or delete.")
                                      ) # Food tabPanel
-                            , tabPanel("Ingredients")
-                            , tabPanel("Steps")
+                            , tabPanel("Ingredient Type")
+                            , tabPanel("Ingredient")
+                            , tabPanel("Measure")
                           )
                          ) # tabPanel admin
                , tabPanel('Source Code',icon = icon("sign-out-alt"),tags$style("float: right;"),p("To be added..."))

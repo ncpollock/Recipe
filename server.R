@@ -16,7 +16,8 @@ shinyServer(function(input, output, session) {
     
     # values to track for changes and trigger actions
     rv <- reactiveValues(
-        food.df = tbl(con,'food') %>% collect()
+        admin = 0 # for CUD when signed in.
+        , food.df = tbl(con,'food') %>% collect()
         , step.df = tbl(con,'step') %>% collect()
         # , ingredient.df = tbl(con,'ingredient') %>% collect()
         # , food_ing.df = tbl(con,'food_ingredient') %>% collect()
@@ -48,7 +49,7 @@ shinyServer(function(input, output, session) {
     v.food_ing.df.r <- reactive({
         s_food <- v.food.df.r()[input$recipes_rows_selected,]
         
-        v.food_ing.df <- v.food_ing.df %>%
+        v.food_ing.df <- rv$v.food_ing.df %>%
             filter(food_id == s_food$id) %>%
             mutate(ingredienttype = paste0("<i class='fa fa-",icon
                                            ,"' style='color:",color,";'></i>")
@@ -73,11 +74,13 @@ shinyServer(function(input, output, session) {
                         'Good for Meal Prep?',
                         'Prep + Cook Time (Minutes)')
         
-        # eventually wrap in if logged in
-        if(1 == 1 ){ # logged in
+        dis_but_order <- list() # disable ordering on buttons fields if they exist
+        
+        if(rv$admin == 1 ){ # if logged in as admin
         tdata$Delete <- init_buttons(nrow(tdata),"delete_food", icon = icon("trash"), class = "btn-danger")
         tdata$Edit <- init_buttons(nrow(tdata),"edit_food", icon = icon("pencil-alt"), class = "btn-warning")
         tdata_cols <- c(tdata_cols,'','')
+        dis_but_order <- list(targets = 4:5, orderable = FALSE) # disable ordering on buttons
         }
         
         datatable(tdata, rownames = FALSE
@@ -88,7 +91,7 @@ shinyServer(function(input, output, session) {
                   , list(searching = TRUE
                          , columnDefs = list(
                              list(visible = FALSE, targets=0)
-                             , list(targets = 4:5, orderable = FALSE)
+                             , dis_but_order
                              , list(className = 'dt-center',targets = 3:ncol(tdata)-1)
                              ))
                   ) %>%
@@ -113,6 +116,8 @@ shinyServer(function(input, output, session) {
                      ,1,20)
     }) # servingUI
     
+    # Steps #############################
+    
     output$steps <- renderDT({
         
         validate(
@@ -125,10 +130,20 @@ shinyServer(function(input, output, session) {
             relocate(instruction_order, .after = id) %>%
             arrange(instruction_order)
         
+        tdata_cols <- c('Order',
+                        'Instruction')
+        
+        dis_but_order <- list() # disable ordering on buttons fields if they exist
+        
+        if(rv$admin == 1 ){ # if logged in as admin
+            tdata$Delete <- init_buttons(nrow(tdata),"delete_step", icon = icon("trash"), class = "btn-danger")
+            tdata$Edit <- init_buttons(nrow(tdata),"edit_step", icon = icon("pencil-alt"), class = "btn-warning")
+            tdata_cols <- c(tdata_cols,'','')
+            dis_but_order <- list(targets = 2:3, orderable = FALSE) # disable ordering on buttons
+        }
+        
         datatable(tdata, rownames = FALSE, selection = 'none', escape = FALSE
-                  , colnames = c('Number',
-                                 # 'Time',
-                                 'Instruction')
+                  , colnames = tdata_cols
                   , extensions = 'Buttons'
                   , options = list(
                       pageLength = nrow(tdata)
@@ -137,6 +152,7 @@ shinyServer(function(input, output, session) {
                       , dom = 'tB'
                       , columnDefs = list(list(visible=FALSE, targets=0) # hide first column
                                           , list(className = 'dt-center',targets = 1) # center second column
+                                          , dis_but_order
                                           ))
         ) %>%
             formatStyle(columns = "instruction_order",
@@ -157,12 +173,20 @@ shinyServer(function(input, output, session) {
         tdata <- v.food_ing.df.r() %>%
             select(ingredienttype, amount_desc, ingredient)
         
+        tdata_cols <- c('Type' # icon
+                        , 'Amount'
+                        , 'Ingredient')
+        
+        if(rv$admin == 1 ){ # if logged in as admin
+            tdata$Delete <- init_buttons(nrow(tdata),"delete_food_ingredient", icon = icon("trash"), class = "btn-danger")
+            tdata$Edit <- init_buttons(nrow(tdata),"edit_food_ingredient", icon = icon("pencil-alt"), class = "btn-warning")
+            tdata_cols <- c(tdata_cols,'','')
+        }
+        
         datatable(tdata, rownames = FALSE
                   , selection = 'single'
                   , escape = -0
-                  , colnames = c('Type' # icon
-                                 , 'Amount'
-                                 , 'Ingredient')
+                  , colnames = tdata_cols
                   , options = list(
                       pageLength = nrow(tdata)
                       # , initComplete = NA to remove header stylings
@@ -218,46 +242,59 @@ shinyServer(function(input, output, session) {
     # hide all admin tabs until sign in
     observe({
         if(input$sign_in == 0 | is.null(input$sign_in)){
-            hideTab("admin_tabs", target = 'Food')
-            hideTab("admin_tabs", target = 'Ingredients')
-            hideTab("admin_tabs", target = 'Steps')
+            hideTab("admin_tabs", target = 'Food Type')
+            hideTab("admin_tabs", target = 'Ingredient Type')
+            hideTab("admin_tabs", target = 'Ingredient')
+            hideTab("admin_tabs", target = 'Measure')
             
-            # should put insertUI here to add bland user icon, then observe sign in to swap with user image!
         }
     })
     
-observeEvent(input$sign_in, {
-    if(input$admin_pass == "testing"){
-    
-    rv$user <= 'Tester'
+    observeEvent(input$sign_in, {
+
+        can_connect <- dbCanConnect(con_config$driver,
+                                    host = con_config$host,
+                                    dbname = con_config$dbname,
+                                    user = input$username,
+                                    password = input$admin_pass)
         
-    # remove login section
-    removeUI("#sign-in",immediate = TRUE)
+        # if user failed to connect, tell them.
+        if(!can_connect | input$username == "" | input$admin_pass == ""){
+            showModal(modalDialog(
+                title = div(icon('times-circle-o')," Login Failed!",style="color:red;")
+                , "Check that your username and password are correct.
+            If the problem continues, contact the Site Administrator."
+                , style = 'background-color:lightPink;'
+                , footer = NULL
+                , easyClose = TRUE
+            ))
+        } else { # successful login
+            rv$con_admin <- dbConnect(con_config$driver,
+                         host = con_config$host,
+                         dbname = con_config$dbname,
+                         user = input$username,
+                         password = input$admin_pass)
+            rv$admin = 1
+        # remove login section
+        removeUI("#sign-in",immediate = TRUE)
     
-    # insert user email in navbar to indicate logged in user
-    insertUI(
-        selector = "#tabs",
-        where = "afterEnd",
-        ui = div(id = "logged-user"
-                 , column(8,strong("Logged in as:"),br()
-                          , rv$user)
-                 , style = "color:white;float:right;padding-top:5px;white-space:nowrap;")
-    )
-    
-    showTab("admin_tabs", target = 'Food')
-    showTab("admin_tabs", target = 'Ingredients')
-    showTab("admin_tabs", target = 'Steps')
-    
-    } else { 
-        showModal(modalDialog(
-            title = "Invalid Password!"
-            , icon("exclamation-triangle")
-            , width = "100%"
-            , easyClose = TRUE
-        )) # showModal
+        # insert user email in navbar to indicate logged in user
+        insertUI(
+            selector = "#tabs",
+            where = "afterEnd",
+            ui = div(id = "logged-user"
+                     , column(8,strong("Logged in as Admin."))
+                     , style = "color:white;float:right;padding-top:5px;white-space:nowrap;")
+        ) # insertUI
+        
+        showTab("admin_tabs", target = 'Food Type')
+        showTab("admin_tabs", target = 'Ingredient Type')
+        showTab("admin_tabs", target = 'Ingredient')
+        showTab("admin_tabs", target = 'Measure')
     } # else
 
-}) 
+}) # observeEvent sign_in
+
 
 # observeEvent(input$tabs,{
 #     if(input$tabs == "admin") {2
@@ -297,7 +334,7 @@ observeEvent(input$delete_food, {
 
 # if confirmed then delete in DB
 observeEvent(input$confirm_delete_food, {
-    dbExecute(con, sqlInterpolate(con,
+    dbExecute(rv$con_admin, sqlInterpolate(con,
                   "DELETE FROM food WHERE id = ?food_id;"
                   , food_id = rv$food_to_delete
               )) # dbExecute
@@ -340,7 +377,7 @@ observeEvent(input$edit_food, {
 
 # if confirmed then delete in DB
 observeEvent(input$confirm_edit_food, {
-    dbExecute(con, sqlInterpolate(con,
+    dbExecute(rv$con_admin, sqlInterpolate(con,
                "UPDATE food
                 SET foodtype_id = ?foodtype_id
                     , food = ?food
