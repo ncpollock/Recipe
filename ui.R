@@ -20,9 +20,9 @@ shinyUI(
                  , tags$script(my_navbar_script) # adds my name in navbar
                  , fluidRow(class = 'bg-info'
                            , column(2,h1("Filters:"))
-                           , column(2,selectInput("MealType", label="Meal Type",
-                                                  choices = c('All',mealtype.df$MealType),
-                                                  selected = 'All')) # mealtype.df$MealType[3]
+                           , column(2,selectInput("foodtype", label="Food Type",
+                                                  choices = c('All',foodtype.df$foodtype),
+                                                  selected = 'All')) # foodtype.df$foodtype[3]
                            , column(3,sliderInput('total_time','Prep + Cook Time',10,max(v.food.df$total_time),59,step = 5))
                            , column(2,br()
                                     , tags$label(class="control-label","Meal Prep Only?"),br()
@@ -31,10 +31,12 @@ shinyUI(
                  , br(),fluidPage( # gives some padding
                    fluidRow(DTOutput("recipes"))
                    , br(),hr(),br()
-                   , uiOutput('servingUI')
-                   , fluidRow(DTOutput("ingredients")
-                              , DTOutput("steps")
-                               ) # mainPanel
+                   , fluidRow(column(6,uiOutput('servingUI')
+                    , DTOutput("ingredients"))
+                   , column(6,DTOutput("steps") ) )
+                   # , fluidRow(DTOutput("ingredients")
+                   #            , DTOutput("steps")
+                   #             ) # fluidRow
                  ) # fluidPage
                  ) # tabPanel Browse
                

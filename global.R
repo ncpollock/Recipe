@@ -1,5 +1,4 @@
 # GLOBAL START ------------------------------------
-library(googlesheets4)
 library(shiny)
 library(shinydashboard) # just for some aesthetics eg box()
 library(DT)
@@ -9,40 +8,52 @@ library(lubridate)
 # library(shinythemes) # consider bslib instead
 library(bslib) # add bs_themer() to server
 library(shinyWidgets) # for better checkbox inputs
+library(DBI)
 
-gs4_deauth() # query Google Sheets without authenticating as a user.
+# server connection details
+db_server <- "recipes.postgres.database.azure.com"
+db_name <- "recipe"
+db_user <- "goodfood"
+
+con <- dbConnect(RPostgres::Postgres(),
+                 host = db_server,
+                 dbname = db_name,
+                 user = db_user,
+                 password = db_password)
+
+# pool <- dbPool(
+#   drv = RPostgres::Postgres(),
+#   dbname = db_name,
+#   host = db_server,
+#   username = db_user,
+#   password = db_password
+# )
 
 # read in data from Google Sheets ------------------------------------------
 # imagine this is the URL or ID of a Sheet readable by anyone (with a link)
-ss <- "https://docs.google.com/spreadsheets/d/1_n0pWIyRXhggoUIzoMC12mwhB-LlCeXD5GaQFXrrpsA/edit?usp=sharing"
-food.df <- read_sheet(ss,"Food")
-step.df <- read_sheet(ss,"Step")
-ingredient.df <- read_sheet(ss,"Ingredient")
-food_ing.df <- read_sheet(ss,"Food_Ingredient")
-mealtype.df <- read_sheet(ss,"MealType")
-ingredienttype.df <- read_sheet(ss,"IngredientType")
+food.df <- tbl(con,'food') %>% collect()
+step.df <- tbl(con,'step') %>% collect()
+ingredient.df <- tbl(con,'ingredient') %>% collect()
+food_ing.df <- tbl(con,'food_ingredient') %>% collect()
+foodtype.df <- tbl(con,'foodtype') %>% collect() # previously mealtype.df
+ingredienttype.df <- tbl(con,'ingredienttype') %>% collect()
+measure.df <- tbl(con,'measure') %>% collect()
 
 # bring in derived / calculated columns
 v.food.df <- food.df %>%
   inner_join(step.df %>% 
-               group_by(Food_ID) %>% 
-               summarise(total_time = sum(Time)
+               group_by(food_id) %>% 
+               summarise(total_time = sum(actiontime)
                          , steps = n())
-            , by = c("ID" = "Food_ID")) %>%
-  inner_join(mealtype.df,by = c("MealType_ID" = "ID"))
+            , by = c("id" = "food_id")) %>%
+  inner_join(foodtype.df,by = c("foodtype_id" = "id"))
 
 # v.ingredient.df <- ""
 v.food_ing.df <- food_ing.df %>%
-  inner_join(ingredient.df, by = c("Ingredient_ID" = "ID")) %>%
-  inner_join(ingredienttype.df, by = c("IngredientType_ID" = "ID"))
+  inner_join(ingredient.df, by = c("ingredient_id" = "id")) %>%
+  inner_join(ingredienttype.df, by = c("ingredienttype_id" = "id")) %>%
+  inner_join(measure.df, by = c("measure_id" = "id"))
   
-
-# v.all.df <- food.df %>%
-#   inner_join(step.df,by = c("ID" = "Food_ID"))
-
-# if I want to write or read private sheet
-# https://stackoverflow.com/questions/63535190/connect-to-googlesheets-via-shiny-in-r-with-googlesheets4
-# https://googlesheets4.tidyverse.org/articles/articles/auth.html
 
 # stylings ----------------------------------
 # https://shiny.rstudio.com/articles/themes.html
@@ -99,13 +110,12 @@ options(shiny.maxRequestSize=1000^3,
         #   # ordering=FALSE,
         #   # dom = 't'
         )
-        , gargle_oauth_cache = ".secrets"
-        , gargle_oob_default = TRUE # use out-of-band auth if authenticating
         )
 
 
 # FUNCTIONS ------------------------------------------------------------
 
+# unit coversions e.g., tablespoons to ounces
 conversion.df <- data.frame(
   measure = c('Millileter'
               ,'Teaspoon'
@@ -118,7 +128,6 @@ conversion.df <- data.frame(
   )
   , value = c(3785.41,768,256,128,16,8,4,1)
 )
-
 
 m.conv <- function(i.value,i.measure = 'Cup'){
   # convert between measures of volume
@@ -135,8 +144,27 @@ m.conv <- function(i.value,i.measure = 'Cup'){
 }
 
 
+# dynamically add input buttons into datatable
+init_buttons <- function(n,id_pref, ...){
+  # n: number of buttons
+  # id_pref: id prefix eg delete_button
+  # thanks to: https://stefanengineering.com/2019/07/06/delete-rows-from-shiny-dt-datatable/
+  lapply(1:n, function(x){
+    as.character(actionButton(paste0(id_pref,"_",x)
+                              , label = NULL
+                              # static onclick event so that a single reactive can observe when any button is pressed
+                              , onclick = paste0('Shiny.setInputValue(\"',id_pref,'\",  this.id, {priority: "event"})')
+                              , ...
+    ))
+  })
+}
 
-
+# extracts index from dynamically generated inputs with pattern input_name_{number}
+# eg delete_button_23
+get_id_from_input <- function(inp_name) {
+  result <- as.integer(sub(".*_([0-9]+)", "\\1", inp_name))
+  if (! is.na(result)) result
+}
 
 
 # END ------------------------------
