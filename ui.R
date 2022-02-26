@@ -12,8 +12,8 @@ shinyUI(
                                   # , dark = 'red'
                                   )
                # title = p(strong("Recipes"),style=paste0("color:",c_1)),
-               , title = "Recipes"
-               , windowTitle = "Recipes"
+               , title = "RecipEase"
+               , windowTitle = "RecipEase"
                # , footer = site_footer
                , tabPanel(
                  'Browse', icon = icon("search")
@@ -21,9 +21,9 @@ shinyUI(
                  , fluidRow(class = 'bg-info'
                            , column(2,h1("Filters:"))
                            , column(2,selectInput("foodtype", label="Food Type",
-                                                  choices = c('All',foodtype.df$foodtype),
+                                                  choices = c('All',foodtype),
                                                   selected = 'All')) # foodtype.df$foodtype[3]
-                           , column(3,sliderInput('total_time','Prep + Cook Time',10,max(v.food.df$total_time),59,step = 5))
+                           , column(3,sliderInput('total_time','Prep + Cook Time',10,90,60,step = 5))
                            , column(2,br()
                                     , tags$label(class="control-label","Meal Prep Only?"),br()
                                     , materialSwitch('meal_prep','',status = 'primary',inline = TRUE))

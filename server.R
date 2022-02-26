@@ -2,6 +2,8 @@
 
 #TO-DO
     # add food description as a tooltip over Food selection table
+    # fix button colors
+    # fix delete SQL
 
 shinyServer(function(input, output, session) {
     
@@ -13,24 +15,34 @@ shinyServer(function(input, output, session) {
     # bs_themer() # for testing shiny themes
     
     # values to track for changes and trigger actions
-    rv <- reactiveValues()
+    rv <- reactiveValues(
+        food.df = tbl(con,'food') %>% collect()
+        , step.df = tbl(con,'step') %>% collect()
+        # , ingredient.df = tbl(con,'ingredient') %>% collect()
+        # , food_ing.df = tbl(con,'food_ingredient') %>% collect()
+        , foodtype.df = tbl(con,'foodtype') %>% collect()
+        # , ingredienttype.df = tbl(con,'ingredienttype') %>% collect()
+        # , measure.df = tbl(con,'measure') %>% collect()
+        , v.food.df = tbl(con,'v_food') %>% collect()
+        , v.food_ing.df = tbl(con,'v_food_ing') %>% collect()
+    )
     
     v.food.df.r <- reactive({
         
+        v.food.df.r = rv$v.food.df %>%
+            filter(total_time <= input$total_time) 
+        
         if(input$foodtype != "All"){
-            v.food.df <- v.food.df %>%
-                filter(foodtype == input$foodtype)
+            v.food.df.r = v.food.df.r %>%
+                filter(foodtype_id == input$foodtype)
         }
         
-        if(input$meal_prep == TRUE){
-            v.food.df <- v.food.df %>%
-                filter(meal_prep == 1)
+        if(input$meal_prep == TRUE){ 
+            v.food.df.r = v.food.df.r %>%
+                filter(meal_prep == input$meal_prep)
         }
-        
-        v.food.df <- v.food.df %>% 
-            filter(total_time <= input$total_time)
-        
-        v.food.df
+
+        v.food.df.r
     })
     
     v.food_ing.df.r <- reactive({
@@ -48,37 +60,41 @@ shinyServer(function(input, output, session) {
     })
     
 # browse -------------------------------------------------------------------------------
-    
+    # Food ##########################
     output$recipes <- renderDT({
         
         tdata <- v.food.df.r() %>%
-            select(-foodtype_id,-serving,-foodtype,-created_date) %>%
+            select(-foodtype_id,-serving,-steps,-foodtype,-created_date) %>%
             mutate(meal_prep = ifelse(meal_prep == 1,i_checkmark, NA)) %>%
             select(-description)
             # relocate(description, .after = last_col())
 
         tdata_cols <- c('Food',
-                        'Good for Meal Prep?', # make this an Icon!
-                        'Prep + Cook Time (Minutes)',
-                        'Steps')
+                        'Good for Meal Prep?',
+                        'Prep + Cook Time (Minutes)')
         
         # eventually wrap in if logged in
         if(1 == 1 ){ # logged in
-        tdata$Delete <- init_buttons(nrow(tdata),"delete_food", icon = icon("trash"), class = "delete_btn")
-        tdata_cols <- c(tdata_cols,'')
+        tdata$Delete <- init_buttons(nrow(tdata),"delete_food", icon = icon("trash"), class = "btn-danger")
+        tdata$Edit <- init_buttons(nrow(tdata),"edit_food", icon = icon("pencil-alt"), class = "btn-warning")
+        tdata_cols <- c(tdata_cols,'','')
         }
         
         datatable(tdata, rownames = FALSE
                   , selection = list(mode = 'single',target = 'row',selected = 1)
-                  , escape = FALSE
+                  , escape = c(-3)
                   # , class = 'bg-dark'
                   , colnames = tdata_cols
                   , list(searching = TRUE
-                         , columnDefs = list(list(visible=FALSE, targets=0)))
+                         , columnDefs = list(
+                             list(visible = FALSE, targets=0)
+                             , list(targets = 4:5, orderable = FALSE)
+                             , list(className = 'dt-center',targets = 3:ncol(tdata)-1)
+                             ))
                   ) %>%
                 formatStyle(
                     'total_time',
-                    background = styleColorBar(range(0,max(tdata$total_time)), 'primary'),
+                    background = styleColorBar(range(0,max(tdata$total_time)), databar_color,angle = 270),
                     # align = 'bottom',
                     backgroundColor = NA,
                     backgroundSize = '100% 85%',
@@ -103,7 +119,7 @@ shinyServer(function(input, output, session) {
             need(input$recipes_rows_selected > 0
             , "Select a food item to see cooking steps!"))
         
-        tdata <- step.df %>%
+        tdata <- rv$step.df %>%
             filter(food_id == v.food.df.r()$id[input$recipes_rows_selected]) %>%
             select(-food_id,-actiontime) %>%
             relocate(instruction_order, .after = id) %>%
@@ -131,6 +147,7 @@ shinyServer(function(input, output, session) {
         
     }) # steps
     
+    # Ingredients #########################
     output$ingredients <- renderDT({
         
         validate(
@@ -265,12 +282,56 @@ observeEvent(input$sign_in, {
 
 observeEvent(input$delete_food, {
     rowNum <- get_id_from_input(input$delete_food)
-    rv$food_to_delete <- rv$active_games$id[[rowNum]] # START HERE!
+    rv$food_to_delete <- v.food.df.r()$id[[rowNum]] 
     
     showModal(modalDialog(
         title = tags$b("Are you sure you want to delete this Food?",style="color:red;")
-        , paste("Food ID:",rv$food_to_delete)
+        , p(paste("Food ID:",rv$food_to_delete)
+            , paste("Food:",v.food.df.r()$food[[rowNum]]) )
         , fluidRow(column(6,actionButton("confirm_delete_food","Delete Food",icon("trash"), class = "delete_btn"))
+                   , column(6,modalButton("Cancel",icon("times"))))
+        , footer = NULL
+        , easyClose = TRUE
+    ))
+}) # observeEvent delete_food
+
+# if confirmed then delete in DB
+observeEvent(input$confirm_delete_food, {
+    dbExecute(con, sqlInterpolate(con,
+                  "DELETE FROM food WHERE id = ?food_id;"
+                  , food_id = rv$food_to_delete
+              )) # dbExecute
+    
+    removeModal()
+    
+    # update datatable
+    rv$v.food.df <- tbl(con,'v_food') %>% collect()
+    
+}) # observeEvent confirm_delete_food
+
+observeEvent(input$edit_food, {
+    rowNum <- get_id_from_input(input$edit_food)
+    rv$food_to_edit <- v.food.df.r()$id[[rowNum]] 
+    
+    select_foodtype <- rv$foodtype.df$id
+    names(select_foodtype) <- rv$foodtype.df$foodtype
+    
+    showModal(modalDialog(
+        title = tags$b("Edit Food")
+        , paste("Food ID:",rv$food_to_edit)
+        , textInput('food_edit',
+                  'Food'
+                  , value = v.food.df.r()$food[[rowNum]]
+                  , placeholder = 'A basic name for the food.'
+                  , width = "100%")
+        , textAreaInput('description_edit',
+                      'Description',height = "70px",width = "100%" # because max-width is 100%!
+                      , value = v.food.df.r()$description[[rowNum]]
+                      , placeholder = 'A brief but informative description...')
+        , numericInput('serving_edit','Servings',4,0,40,1,width = '100%')
+        , checkboxInput('meal_prep_edit','Good for Meal Prep?',v.food.df.r()$meal_prep[[rowNum]])
+        , selectInput('food_foodtype_edit','Type',select_foodtype,v.food.df.r()$foodtype_id[[rowNum]])
+        , fluidRow(column(6,actionButton("confirm_edit_food","Save Edits",icon("pencil-alt"), class = "btn-success"))
                    , column(6,modalButton("Cancel",icon("times"))))
         , footer = NULL
         , easyClose = TRUE
@@ -278,23 +339,29 @@ observeEvent(input$delete_food, {
 }) # observeEvent delete_game
 
 # if confirmed then delete in DB
-observeEvent(input$confirm_delete_food, {
-    dbExecute(rv$con
-              , glue_sql(
-                  "DELETE FROM food
-                WHERE id = {food_id*}"
-                  , food_id = rv$food_to_delete
-                  , .con = rv$con
-              )
-    )
-    
+observeEvent(input$confirm_edit_food, {
+    dbExecute(con, sqlInterpolate(con,
+               "UPDATE food
+                SET foodtype_id = ?foodtype_id
+                    , food = ?food
+                    , description = ?description
+                    , serving = ?serving
+                    , meal_prep = ?meal_prep
+                WHERE id = ?food_id;"
+                , food_id = rv$food_to_edit
+                , foodtype_id = input$food_foodtype_edit
+                , food = input$food_edit
+                , description = input$description_edit
+                , serving = input$serving_edit
+                , meal_prep = as.character(input$meal_prep_edit))
+    ) # dbExecute
+
     removeModal()
     
     # update datatable
-    rv$active_games <- tbl(rv$con, 'active_games') %>% collect()
+    rv$v.food.df <- tbl(con,'v_food') %>% collect()
     
 }) # observeEvent confirm_delete_game
-
 
 }) # shinyServer 
 # END ------------------------

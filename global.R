@@ -5,15 +5,9 @@ library(DT)
 library(dplyr)
 library(tidyr)
 library(lubridate)
-# library(shinythemes) # consider bslib instead
-library(bslib) # add bs_themer() to server
+library(bslib)
 library(shinyWidgets) # for better checkbox inputs
 library(DBI)
-
-# server connection details
-db_server <- "recipes.postgres.database.azure.com"
-db_name <- "recipe"
-db_user <- "goodfood"
 
 con <- dbConnect(RPostgres::Postgres(),
                  host = db_server,
@@ -21,6 +15,13 @@ con <- dbConnect(RPostgres::Postgres(),
                  user = db_user,
                  password = db_password)
 
+# for use in UI, this will need to be in the server eventually
+  # ie when I create admin page for adding new types
+foodtype.df = tbl(con,'foodtype') %>% collect()
+foodtype <- foodtype.df$id
+names(foodtype) <- foodtype.df$foodtype
+
+# consider pool
 # pool <- dbPool(
 #   drv = RPostgres::Postgres(),
 #   dbname = db_name,
@@ -29,36 +30,11 @@ con <- dbConnect(RPostgres::Postgres(),
 #   password = db_password
 # )
 
-# read in data from Google Sheets ------------------------------------------
-# imagine this is the URL or ID of a Sheet readable by anyone (with a link)
-food.df <- tbl(con,'food') %>% collect()
-step.df <- tbl(con,'step') %>% collect()
-ingredient.df <- tbl(con,'ingredient') %>% collect()
-food_ing.df <- tbl(con,'food_ingredient') %>% collect()
-foodtype.df <- tbl(con,'foodtype') %>% collect() # previously mealtype.df
-ingredienttype.df <- tbl(con,'ingredienttype') %>% collect()
-measure.df <- tbl(con,'measure') %>% collect()
-
-# bring in derived / calculated columns
-v.food.df <- food.df %>%
-  inner_join(step.df %>% 
-               group_by(food_id) %>% 
-               summarise(total_time = sum(actiontime)
-                         , steps = n())
-            , by = c("id" = "food_id")) %>%
-  inner_join(foodtype.df,by = c("foodtype_id" = "id"))
-
-# v.ingredient.df <- ""
-v.food_ing.df <- food_ing.df %>%
-  inner_join(ingredient.df, by = c("ingredient_id" = "id")) %>%
-  inner_join(ingredienttype.df, by = c("ingredienttype_id" = "id")) %>%
-  inner_join(measure.df, by = c("measure_id" = "id"))
-  
-
 # stylings ----------------------------------
 # https://shiny.rstudio.com/articles/themes.html
 # light_electric_blue <- "#7DF9FF"
 electric_blue <- "#0892d0"
+databar_color <- electric_blue
 
 # style the Data Tables header.
 dt_header <- JS(
@@ -94,6 +70,7 @@ my_navbar_info <- gsub("[\r\n]", "",
 my_navbar_script <- HTML(paste0("var header = $('.navbar> .container-fluid');header.append('"
        , my_navbar_info,"');console.log(header)"))
 
+# meant to replace boolean values in datatables
 i_checkmark <- "<i class='fa fa-check-circle' style='color:green;'></i>"
 
 # options -----------------------------------------------------------
@@ -159,8 +136,8 @@ init_buttons <- function(n,id_pref, ...){
   })
 }
 
-# extracts index from dynamically generated inputs with pattern input_name_{number}
-# eg delete_button_23
+# extracts index from dynamically generated inputs e.g., init_buttons 
+  # with pattern input_name_{number} eg delete_button_23
 get_id_from_input <- function(inp_name) {
   result <- as.integer(sub(".*_([0-9]+)", "\\1", inp_name))
   if (! is.na(result)) result
