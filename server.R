@@ -6,6 +6,7 @@
     # build reactive structure for input lists
     # prevent sign-in from being clicked multiple times.
     # fix errors when buttons are selected, it's like a shadow row is selected
+    # auto-select DT
 
 shinyServer(function(input, output, session) {
     
@@ -64,8 +65,10 @@ shinyServer(function(input, output, session) {
             mutate(ingredienttype = paste0("<i class='fa fa-",icon
                                            ,"' style='color:",color,";'></i>")
                    , amount = qty*(input$servings/s_food$serving)
-                   , amount_desc = gsub( fixed = T, ' - NA',''
-                                        , paste(amount,measurement,sep = ' - '))) 
+                   , measurement = replace_na(measurement,'Whole')
+                   , amount_desc = paste(amount,measurement,sep = ' - '))
+                   # , amount_desc = gsub( fixed = T, ' - NA',''
+                   #                      , paste(amount,measurement,sep = ' - '))) 
         
         v.food_ing.df
     })
@@ -129,6 +132,8 @@ shinyServer(function(input, output, session) {
     # _Steps #############################
     
     output$steps <- renderDT({
+        
+        # input$confirm_edit_step # to trigger table refresh
         
         validate(
             need(input$recipes_rows_selected > 0
@@ -260,7 +265,6 @@ shinyServer(function(input, output, session) {
             hideTab("admin_tabs", target = 'Ingredient Type')
             hideTab("admin_tabs", target = 'Ingredient')
             hideTab("admin_tabs", target = 'Measure')
-            
         }
     })
     
@@ -356,6 +360,7 @@ observeEvent(input$delete_food, {
     
     showModal(modalDialog(
         title = tags$b("Are you sure you want to delete this Food?",style="color:red;")
+        , class = "delete"
         , p(paste("Food ID:",rv$food_to_delete)
             , paste("Food:",v.food.df.r()$food[[rowNum]]) )
         , fluidRow(column(6,actionButton("confirm_delete_food","Delete Food",icon("trash"), class = "btn-danger"))
@@ -384,10 +389,12 @@ observeEvent(input$delete_step, {
     rowNum <- get_id_from_input(input$delete_step)
     rv$step_to_delete <- (rv$step.df %>%
         filter(food_id == v.food.df.r()$id[input$recipes_rows_selected]) %>%
+        arrange(instruction_order) %>%
         pull(id) )[[rowNum]] 
     
     showModal(modalDialog(
         title = tags$b("Are you sure you want to delete this Step?",style="color:red;")
+        , class = "delete"
         , "Step ID: ",rv$step_to_delete, br()
         , "Step Order: "
         , rv$step.df %>% filter(id == rv$step_to_delete) %>% pull(instruction_order)
@@ -417,6 +424,7 @@ observeEvent(input$delete_food_ing, {
     
     showModal(modalDialog(
         title = tags$b("Are you sure you want to delete this Ingredient for this Food?",style="color:red;")
+        , class = "delete"
         , "Food ID: ",rv$food_ing_to_delete$food_id, br()
         , "Ingredient ID: ", rv$food_ing_to_delete$ingredient_id, br()
         , "Ingredient: "
@@ -433,8 +441,8 @@ observeEvent(input$confirm_delete_food_ing, {
     dbExecute(rv$con_admin, sqlInterpolate(
         rv$con_admin,"DELETE FROM food_ingredient 
             WHERE food_id = ?f_id AND ingredient_id = ?ing_id;"
-        , f_id = rv$food_ing_to_delete
-        , ing_id = rv$ing_to_delete)) # dbExecute
+        , f_id = rv$food_ing_to_delete$food_id
+        , ing_id = rv$food_ing_to_delete$ingredient_id)) # dbExecute
     
     removeModal()
     
@@ -453,6 +461,7 @@ observeEvent(input$edit_food, {
     
     showModal(modalDialog(
         title = tags$b("Edit Food")
+        , class = "edit"
         , paste("Food ID: ",rv$food_to_edit)
         , textInput('food_edit',
                   'Food'
@@ -534,6 +543,54 @@ observeEvent(input$confirm_edit_food_ing, {
     
     # update datatable
     rv$v.food_ing.df <- tbl(con,'v_food_ing') %>% collect()
+    
+}) # observeEvent confirm_delete_food
+
+# _Edit Step -------------------
+observeEvent(input$edit_step, {
+    rowNum <- get_id_from_input(input$edit_step)
+    # this should be a reactive value instead to avoid multiple calculations.
+    steps_for_food.df <- rv$step.df %>%
+        filter(food_id == v.food.df.r()$id[input$recipes_rows_selected]) %>%
+        arrange(instruction_order)
+    rv$step_to_edit <- (steps_for_food.df)[rowNum,]
+    
+    showModal(modalDialog(
+        title = tags$b("Edit Step: ",rv$step_to_edit$instruction_order)
+        , class = "edit"
+        , numericInput('actiontime_edit','Total Minutes to Complete This Step'
+                       , rv$step_to_edit$actiontime,0,120,1,width = '100%')
+        , sliderInput('step_order_edit','Order #',1,max(steps_for_food.df$instruction_order) + 1
+                      , rv$step_to_edit$instruction_order,1)
+        , textAreaInput('instruction_edit',
+                        'Instructions',height = "120px",width = "100%" # because max-width is 100%!
+                        , value = rv$step_to_edit$instruction
+                        , placeholder = 'Clear and detailed. Can sometimes be several sentences long.')
+        , fluidRow(column(6,actionButton("confirm_edit_step","Save Edits",icon("pencil-alt"), class = "btn-success"))
+                   , column(6,modalButton("Cancel",icon("times"))))
+        , footer = NULL
+        , easyClose = TRUE
+    ))
+}) # observeEvent edit_food
+
+# if confirmed then update in DB
+observeEvent(input$confirm_edit_step, {
+    dbExecute(rv$con_admin, sqlInterpolate(
+        rv$con_admin,
+        "UPDATE step
+        SET actiontime = ?at
+                , instruction_order = ?inst_ord
+                , instruction = ?inst
+        WHERE id = ?s_id;"
+        , s_id = rv$step_to_edit$id
+        , at = input$actiontime_edit
+        , inst_ord = input$step_order_edit
+        , inst = input$instruction_edit)) # dbExecute
+    
+    removeModal()
+    
+    # update datatable
+    rv$step.df <- tbl(con,'step') %>% collect()
     
 }) # observeEvent confirm_delete_food
 
