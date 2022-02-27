@@ -2,8 +2,10 @@
 
 #TO-DO
     # add food description as a tooltip over Food selection table
-    # fix button colors
-    # fix delete SQL
+    # refine CSS
+    # build reactive structure for input lists
+    # prevent sign-in from being clicked multiple times.
+    # fix errors when buttons are selected, it's like a shadow row is selected
 
 shinyServer(function(input, output, session) {
     
@@ -27,6 +29,14 @@ shinyServer(function(input, output, session) {
         , v.food.df = tbl(con,'v_food') %>% collect()
         , v.food_ing.df = tbl(con,'v_food_ing') %>% collect()
     )
+    
+    # will need these in reactive as standard inputs
+    # for selectInput
+    # select_measure <- rv$measure.df$id
+    # names(select_measure) <- rv$measure.df$measurement
+    # 
+    # select_ingredient <- rv$ingredient.df$id
+    # names(select_ingredient) <- rv$ingredient.df$ingredient
     
     v.food.df.r <- reactive({
         
@@ -60,8 +70,8 @@ shinyServer(function(input, output, session) {
         v.food_ing.df
     })
     
-# browse -------------------------------------------------------------------------------
-    # Food ##########################
+# Browse -------------------------------------------------------------------------------
+    # _Food ##########################
     output$recipes <- renderDT({
         
         tdata <- v.food.df.r() %>%
@@ -116,7 +126,7 @@ shinyServer(function(input, output, session) {
                      ,1,20)
     }) # servingUI
     
-    # Steps #############################
+    # _Steps #############################
     
     output$steps <- renderDT({
         
@@ -163,7 +173,7 @@ shinyServer(function(input, output, session) {
         
     }) # steps
     
-    # Ingredients #########################
+    # _Ingredients #########################
     output$ingredients <- renderDT({
         
         validate(
@@ -178,8 +188,8 @@ shinyServer(function(input, output, session) {
                         , 'Ingredient')
         
         if(rv$admin == 1 ){ # if logged in as admin
-            tdata$Delete <- init_buttons(nrow(tdata),"delete_food_ingredient", icon = icon("trash"), class = "btn-danger")
-            tdata$Edit <- init_buttons(nrow(tdata),"edit_food_ingredient", icon = icon("pencil-alt"), class = "btn-warning")
+            tdata$Delete <- init_buttons(nrow(tdata),"delete_food_ing", icon = icon("trash"), class = "btn-danger")
+            tdata$Edit <- init_buttons(nrow(tdata),"edit_food_ing", icon = icon("pencil-alt"), class = "btn-warning")
             tdata_cols <- c(tdata_cols,'','')
         }
         
@@ -201,6 +211,7 @@ shinyServer(function(input, output, session) {
         
     }) # ingredients
     
+    # _Measurements #####################################
     output$conversions <- renderDT({
         
         # subset for selected ingredient
@@ -209,8 +220,7 @@ shinyServer(function(input, output, session) {
         # only show conversion when a conversion exists.
         validate(
             need(ing.r$measurement %in% conversion.df$measure
-                 , "There are no conversions available for this measurement."))
-
+                 , glue("There are no conversions available for {ing.r$measurement}")))
         
         # generate conversion table
         tdata <- m.conv(ing.r$amount
@@ -228,10 +238,14 @@ shinyServer(function(input, output, session) {
     })
     
     # show measurement conversions
-    observeEvent(input$ingredients_rows_selected, {
+    observeEvent(input$measure_conv, {
+        # subset for selected ingredient
+        ing.r <- v.food_ing.df.r()[input$ingredients_rows_selected,]
+        
         # when DT ingredients row is clicked
         showModal(modalDialog(
-            title = "measurement Conversions",
+            title = "Measurement Conversions",
+            p("Conversions for: ",ing.r$amount_desc),
             DTOutput('conversions'),
             easyClose = TRUE
         ))
@@ -252,6 +266,8 @@ shinyServer(function(input, output, session) {
     
     observeEvent(input$sign_in, {
 
+        shinyjs::disable("sign_in")
+        
         can_connect <- dbCanConnect(con_config$driver,
                                     host = con_config$host,
                                     dbname = con_config$dbname,
@@ -268,13 +284,16 @@ shinyServer(function(input, output, session) {
                 , footer = NULL
                 , easyClose = TRUE
             ))
+            shinyjs::enable("sign_in")
         } else { # successful login
             rv$con_admin <- dbConnect(con_config$driver,
                          host = con_config$host,
                          dbname = con_config$dbname,
                          user = input$username,
                          password = input$admin_pass)
+            
             rv$admin = 1
+            
         # remove login section
         removeUI("#sign-in",immediate = TRUE)
     
@@ -285,6 +304,23 @@ shinyServer(function(input, output, session) {
             ui = div(id = "logged-user"
                      , column(8,strong("Logged in as Admin."))
                      , style = "color:white;float:right;padding-top:5px;white-space:nowrap;")
+        ) # insertUI
+        
+        # insert add new buttons on main page
+        insertUI(
+            selector = "#recipes",
+            where = "afterEnd",
+            ui = actionButton("add_food", "Add Food", icon = icon("plus"), class = "btn-success")
+        ) # insertUI
+        insertUI(
+            selector = "#ingredients",
+            where = "afterEnd",
+            ui = actionButton("add_food_ingredients", "Add Ingredient", icon = icon("plus"), class = "btn-success")
+        ) # insertUI
+        insertUI(
+            selector = "#steps",
+            where = "afterEnd",
+            ui = actionButton("add_steps", "Add Step", icon = icon("plus"), class = "btn-success")
         ) # insertUI
         
         showTab("admin_tabs", target = 'Food Type')
@@ -298,12 +334,9 @@ shinyServer(function(input, output, session) {
 
 # observeEvent(input$tabs,{
 #     if(input$tabs == "admin") {2
-#         # Authenticate into Googlesheets for edit privileges
-#         gs4_deauth()
 #         
 #     } else if(input$tabs == "out") {
 #         # sign out
-#         gs4_deauth()
 #         
 #         # tell user they've logged out.
 #         showModal(modalDialog(
@@ -315,8 +348,8 @@ shinyServer(function(input, output, session) {
 #     }
 #     }) # observer tabs
 
-# Admin Actions #########################################################
-
+# Delete Buttons ####################################################
+    # _Delete Food ----------------------------
 observeEvent(input$delete_food, {
     rowNum <- get_id_from_input(input$delete_food)
     rv$food_to_delete <- v.food.df.r()$id[[rowNum]] 
@@ -325,7 +358,7 @@ observeEvent(input$delete_food, {
         title = tags$b("Are you sure you want to delete this Food?",style="color:red;")
         , p(paste("Food ID:",rv$food_to_delete)
             , paste("Food:",v.food.df.r()$food[[rowNum]]) )
-        , fluidRow(column(6,actionButton("confirm_delete_food","Delete Food",icon("trash"), class = "delete_btn"))
+        , fluidRow(column(6,actionButton("confirm_delete_food","Delete Food",icon("trash"), class = "btn-danger"))
                    , column(6,modalButton("Cancel",icon("times"))))
         , footer = NULL
         , easyClose = TRUE
@@ -334,7 +367,7 @@ observeEvent(input$delete_food, {
 
 # if confirmed then delete in DB
 observeEvent(input$confirm_delete_food, {
-    dbExecute(rv$con_admin, sqlInterpolate(con,
+    dbExecute(rv$con_admin, sqlInterpolate(rv$con_admin,
                   "DELETE FROM food WHERE id = ?food_id;"
                   , food_id = rv$food_to_delete
               )) # dbExecute
@@ -346,6 +379,71 @@ observeEvent(input$confirm_delete_food, {
     
 }) # observeEvent confirm_delete_food
 
+# _Delete Step -----------------------------------------------------
+observeEvent(input$delete_step, {
+    rowNum <- get_id_from_input(input$delete_step)
+    rv$step_to_delete <- (rv$step.df %>%
+        filter(food_id == v.food.df.r()$id[input$recipes_rows_selected]) %>%
+        pull(id) )[[rowNum]] 
+    
+    showModal(modalDialog(
+        title = tags$b("Are you sure you want to delete this Step?",style="color:red;")
+        , "Step ID: ",rv$step_to_delete, br()
+        , "Step Order: "
+        , rv$step.df %>% filter(id == rv$step_to_delete) %>% pull(instruction_order)
+        , fluidRow(column(6,actionButton("confirm_delete_step","Delete Step",icon("trash"), class = "btn-danger"))
+                   , column(6,modalButton("Cancel",icon("times"))))
+        , footer = NULL
+        , easyClose = TRUE
+    ))
+}) # observeEvent delete_step
+
+# if confirmed then delete in DB
+observeEvent(input$confirm_delete_step, {
+    dbExecute(rv$con_admin, sqlInterpolate(
+        rv$con_admin,"DELETE FROM step WHERE id = ?id;"
+        , id = rv$step_to_delete)) # dbExecute
+    
+    removeModal()
+    
+    # update datatable
+    rv$step.df <- tbl(con,'step') %>% collect()
+}) # observeEvent confirm_delete_step
+
+# _Delete Food_Ing ------------------------------------
+observeEvent(input$delete_food_ing, {
+    rowNum <- get_id_from_input(input$delete_food_ing)
+    rv$food_ing_to_delete <- v.food_ing.df.r()[rowNum,]
+    
+    showModal(modalDialog(
+        title = tags$b("Are you sure you want to delete this Ingredient for this Food?",style="color:red;")
+        , "Food ID: ",rv$food_ing_to_delete$food_id, br()
+        , "Ingredient ID: ", rv$food_ing_to_delete$ingredient_id, br()
+        , "Ingredient: "
+        , rv$food_ing_to_delete$ingredient, br()
+        , fluidRow(column(6,actionButton("confirm_delete_food_ing","Delete Ingredient",icon("trash"), class = "btn-danger"))
+                   , column(6,modalButton("Cancel",icon("times"))))
+        , footer = NULL
+        , easyClose = TRUE
+    ))
+}) # observeEvent delete_step
+
+# if confirmed then delete in DB
+observeEvent(input$confirm_delete_food_ing, {
+    dbExecute(rv$con_admin, sqlInterpolate(
+        rv$con_admin,"DELETE FROM food_ingredient 
+            WHERE food_id = ?f_id AND ingredient_id = ?ing_id;"
+        , f_id = rv$food_ing_to_delete
+        , ing_id = rv$ing_to_delete)) # dbExecute
+    
+    removeModal()
+    
+    # update datatable
+    rv$v.food_ing.df <- tbl(con,'v_food_ing') %>% collect()
+}) # observeEvent confirm_delete_food_ing
+
+# Edit Buttons --------------------------------------------------------------
+# _Edit Food --------------------
 observeEvent(input$edit_food, {
     rowNum <- get_id_from_input(input$edit_food)
     rv$food_to_edit <- v.food.df.r()$id[[rowNum]] 
@@ -355,7 +453,7 @@ observeEvent(input$edit_food, {
     
     showModal(modalDialog(
         title = tags$b("Edit Food")
-        , paste("Food ID:",rv$food_to_edit)
+        , paste("Food ID: ",rv$food_to_edit)
         , textInput('food_edit',
                   'Food'
                   , value = v.food.df.r()$food[[rowNum]]
@@ -373,11 +471,11 @@ observeEvent(input$edit_food, {
         , footer = NULL
         , easyClose = TRUE
     ))
-}) # observeEvent delete_game
+}) # observeEvent edit_food
 
-# if confirmed then delete in DB
+# if confirmed then update in DB
 observeEvent(input$confirm_edit_food, {
-    dbExecute(rv$con_admin, sqlInterpolate(con,
+    dbExecute(rv$con_admin, sqlInterpolate(rv$con_admin,
                "UPDATE food
                 SET foodtype_id = ?foodtype_id
                     , food = ?food
@@ -398,7 +496,48 @@ observeEvent(input$confirm_edit_food, {
     # update datatable
     rv$v.food.df <- tbl(con,'v_food') %>% collect()
     
-}) # observeEvent confirm_delete_game
+}) # observeEvent confirm_delete_food
+
+# _Edit Food_ing -------------------
+observeEvent(input$edit_food_ing, {
+    rowNum <- get_id_from_input(input$edit_food_ing)
+    rv$food_ing_to_edit <- v.food_ing.df.r()[rowNum,]
+    
+    showModal(modalDialog(
+        title = tags$b("Edit ",rv$food_ing_to_edit$ingredient)
+        , class = "edit"
+        , "Food ID: ",rv$food_ing_to_edit$food_id, br()
+        , "Ingredient ID: ", rv$food_ing_to_edit$ingredient_id, br()
+        , numericInput('amount_edit',glue('Amount ({rv$food_ing_to_edit$measurement}s)')
+                       ,rv$food_ing_to_edit$qty,0,120,1,width = '100%')
+        , checkboxInput('food_ing_opt_edit','Optional?',rv$food_ing_to_edit$optional)
+        , fluidRow(column(6,actionButton("confirm_edit_food_ing","Save Edits",icon("pencil-alt"), class = "btn-success"))
+                   , column(6,modalButton("Cancel",icon("times"))))
+        , footer = NULL
+        , easyClose = TRUE
+    ))
+}) # observeEvent edit_food
+
+# if confirmed then update in DB
+observeEvent(input$confirm_edit_food_ing, {
+    dbExecute(rv$con_admin, sqlInterpolate(
+        rv$con_admin,
+        "UPDATE food_ingredient
+        SET qty = ?QTY
+                , optional = ?optional
+        WHERE food_id = ?f_id AND ingredient_id = ?ing_id;"
+           , f_id = rv$food_ing_to_edit$food_id, ing_id = rv$food_ing_to_edit$ingredient_id
+           , QTY = input$amount_edit
+           , optional = as.character(input$food_ing_opt_edit))) # dbExecute
+    
+    removeModal()
+    
+    # update datatable
+    rv$v.food_ing.df <- tbl(con,'v_food_ing') %>% collect()
+    
+}) # observeEvent confirm_delete_food
+
+# Add Buttons ######################
 
 }) # shinyServer 
 # END ------------------------
