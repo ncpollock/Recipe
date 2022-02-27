@@ -53,15 +53,22 @@ hr {
   background-color: orange;
 }
 
-.add_btn {
+.add_btn, .add {
   background-color: green;
 }
-.edit_btn {
+.edit_btn, .edit {
   background-color: yellow;
 }
-.delete_btn {
-  background-color: red !important;
+.delete_btn, .delete {
+  background-color: red;
 }
 .add_btn:hover, .edit_btn:hover, .delete_btn:hover {
   background-color: #090909; 
+}
+
+/* style ccustom error messages */
+.shiny-output-error-validation {
+  font-size: 180%;
+  font-weight: bold;
+  text-align: center;
 }

@@ -1,7 +1,8 @@
 # START --------------------------------------------------
 shinyUI(
   tagList(
-    tags$link(rel = "stylesheet", type = "text/css", href = "my_style.css")
+    # tags$head(tags$link(rel = "stylesheet", type = "text/css", href = "my_style.css"))
+    tags$head(includeCSS("www/my_style.css"))
     , navbarPage(id = "tabs"
                # theme = shinytheme("cosmo"),
                , theme = bs_theme(bootswatch = "cosmo"
@@ -31,7 +32,9 @@ shinyUI(
                  , br(),fluidPage( # gives some padding
                    fluidRow(DTOutput("recipes"))
                    , br(),hr(),br()
-                   , fluidRow(column(6,uiOutput('servingUI')
+                   , fluidRow(
+                     column(6,fluidRow(column(6,uiOutput('servingUI'))
+                            , column(6,actionButton("measure_conv","Amount Conversions",icon("calculator")) ))
                     , DTOutput("ingredients"))
                    , column(6,DTOutput("steps") ) )
                    # , fluidRow(DTOutput("ingredients")
@@ -94,8 +97,8 @@ shinyUI(
                                , p("This web application helps people choose and create simple meals.")
                                 , h1("Resources")
                                 , tags$ul(
-                                  tags$li("NIH Food Groups",href = "https://www.nia.nih.gov/health/know-your-food-groups")
-                                  , tags$li("Where to Find Other Recipes",href = "https://www.google.com")
+                                  tags$li(a("NIH Food Groups",href = "https://www.nia.nih.gov/health/know-your-food-groups",target="_blank"))
+                                  , tags$li(a("Where to Find Other Recipes",href = "https://www.google.com",target="_blank"))
                                   )
                  ) # mainPanel
                      ) # sideBarLayout
