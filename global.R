@@ -8,6 +8,7 @@ library(lubridate)
 library(bslib)
 library(shinyWidgets) # for better checkbox inputs
 library(DBI)
+library(shinyjs) # for enable/disable buttons
 
 con_config <- config::get("dbcon")
 con <- dbConnect(con_config$driver,
@@ -93,7 +94,8 @@ options(shiny.maxRequestSize=1000^3,
 
 # FUNCTIONS ------------------------------------------------------------
 
-# unit coversions e.g., tablespoons to ounces
+# liquid unit conversions
+  # rethink to include solids e.g., pounds to ounces
 conversion.df <- data.frame(
   measure = c('Millileter'
               ,'Teaspoon'
