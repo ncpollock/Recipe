@@ -61,7 +61,7 @@ CREATE TABLE Measure
 );
 COMMENT ON TABLE Measure IS 'How we measure quantities of a food.';
 INSERT INTO Measure (Measurement) VALUES
-    (NULL)
+    ('Whole')
 	, ('Pound')
 	, ('Cup')
 	, ('Ounce')
