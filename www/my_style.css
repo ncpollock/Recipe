@@ -53,17 +53,24 @@ hr {
   background-color: orange;
 }
 
-.add_btn, .add {
+.add {
   background-color: green;
 }
-.edit_btn, .edit {
-  background-color: yellow;
+.edit {
+  border-style: solid;
+  border-color: #ff7518;
+  border-width: 4px;
+  /* background-color: #d0c900ad a light yellow */
 }
-.delete_btn, .delete {
-  background-color: red;
+.delete {
+  border-style: solid;
+  border-color: #ff0039;
+  border-width: 4px;
+  /* background-color: #d00000a3; */
 }
-.add_btn:hover, .edit_btn:hover, .delete_btn:hover {
+.btn-danger:hover, .btn-warning:hover, .btn-success:hover {
   background-color: #090909; 
+  color: white;
 }
 
 /* style ccustom error messages */
