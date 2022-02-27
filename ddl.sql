@@ -221,6 +221,8 @@ CREATE VIEW v_food AS
 		f.id = s.food_id
 	LEFT JOIN foodtype ft ON
 		ft.id = f.foodtype_id;
+-- could count ingredients as well for an overall complexity score 
+	-- e.g., complexity = normalized(total_time) + normalized(ingredient_count) + rarity of ingredients
 
 DROP VIEW v_food_ing;
 CREATE VIEW v_food_ing AS
