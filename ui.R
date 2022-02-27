@@ -34,7 +34,8 @@ shinyUI(
                    , br(),hr(),br()
                    , fluidRow(
                      column(6,fluidRow(column(6,uiOutput('servingUI'))
-                            , column(6,actionButton("measure_conv","Amount Conversions",icon("calculator")) ))
+                            , column(6,actionButton("measure_conv","Amount Conversions",icon("calculator"))
+                                     , style = "margin-top: 30px;"))
                     , DTOutput("ingredients"))
                    , column(6,DTOutput("steps") ) )
                    # , fluidRow(DTOutput("ingredients")
