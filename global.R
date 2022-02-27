@@ -129,6 +129,7 @@ init_buttons <- function(n,id_pref, ...){
   # n: number of buttons
   # id_pref: id prefix eg delete_button
   # thanks to: https://stefanengineering.com/2019/07/06/delete-rows-from-shiny-dt-datatable/
+  if(n>0){
   lapply(1:n, function(x){
     as.character(actionButton(paste0(id_pref,"_",x)
                               , label = NULL
@@ -137,6 +138,7 @@ init_buttons <- function(n,id_pref, ...){
                               , ...
     ))
   })
+  } # n > 0
 }
 
 # extracts index from dynamically generated inputs e.g., init_buttons 
