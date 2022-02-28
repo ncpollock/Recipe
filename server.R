@@ -6,11 +6,12 @@
     # prevent sign-in from being clicked multiple times.
     # fix errors when buttons are selected, it's like a shadow row is selected
     # auto-select DT
-    # decide on DB vs APP solution to preventing 0 steps/food_ingredients
-    # only load step.df and v.food_ing.df for the selected food!
+    # continue to optimize query and reactivevalue timing
+    # admin controls for validation tables
 
 # Optional
-    # show ing type icon when editing / adding ingredients.
+    # show ingredient type icon when editing / adding ingredients.
+    # reworkd v.food.df.r to use dbgetquery
 
 shinyServer(function(input, output, session) {
     
@@ -24,8 +25,9 @@ shinyServer(function(input, output, session) {
     # values to track for changes and trigger actions
     rv <- reactiveValues(
         admin = 0 # for CUD when signed in.
-        , food.df = tbl(con,'food') %>% collect()
-        , step.df = tbl(con,'step') %>% collect() # should separate this and limit to just the step for the selected food
+        # , food.df = tbl(con,'food') %>% collect()
+        , reval_step.df = TRUE
+        , step.df = tbl(con,'step') %>% collect()
         , ingredient.df = tbl(con,'ingredient') %>% collect()
         # , food_ing.df = tbl(con,'food_ingredient') %>% collect()
         , foodtype.df = tbl(con,'foodtype') %>% collect()
@@ -89,16 +91,6 @@ shinyServer(function(input, output, session) {
     })
     
     v.food_ing.df.r <- reactive({
-        # s_food <- v.food.df.r()[input$recipes_rows_selected,]
-        # 
-        # v.food_ing.df <-  %>%
-        #     filter(food_id == s_food$id) %>%
-        #     mutate(ingredienttype = paste0("<i class='fa fa-",icon
-        #                                    ,"' style='color:",color,";'></i>")
-        #            , amount = qty*(input$servings/s_food$serving)
-        #            , amount_desc = paste(amount,measurement,sep = ' - '))
-        # 
-        # v.food_ing.df
         
         rv$reval_v.food_ing.df # to trigger dependency
         
@@ -106,7 +98,7 @@ shinyServer(function(input, output, session) {
 
         v.food_ing.df <- dbGetQuery(con, sqlInterpolate(con,
             "SELECT * FROM v_food_ing
-             WHERE food_id = ?f_id"
+             WHERE food_id = ?f_id;"
             , f_id = s_food$id)) %>%
             mutate(ingredienttype = paste0("<i class='fa fa-",icon
                                            ,"' style='color:",color,";'></i>")
@@ -114,6 +106,21 @@ shinyServer(function(input, output, session) {
                    , amount_desc = paste(amount,measurement,sep = ' - '))
                        
         v.food_ing.df             
+    })
+    
+    step.df.r <- reactive({
+        
+        rv$reval_step.df # to trigger dependency
+        
+        s_food <- v.food.df.r()[input$recipes_rows_selected,]
+        
+        step.df <- dbGetQuery(con, sqlInterpolate(con,
+             "SELECT * FROM step
+             WHERE food_id = ?f_id
+             ORDER BY instruction_order;"
+             , f_id = s_food$id))
+        
+        step.df             
     })
     
 # Browse -------------------------------------------------------------------------------
@@ -176,17 +183,13 @@ shinyServer(function(input, output, session) {
     
     output$steps <- renderDT({
         
-        # input$confirm_edit_step # to trigger table refresh
-        
         validate(
             need(input$recipes_rows_selected > 0
             , "Select a food item to see cooking steps!"))
         
-        tdata <- rv$step.df %>%
-            filter(food_id == v.food.df.r()$id[input$recipes_rows_selected]) %>%
+        tdata <- step.df.r() %>%
             select(-food_id,-actiontime) %>%
-            relocate(instruction_order, .after = id) %>%
-            arrange(instruction_order)
+            relocate(instruction_order, .after = id)
         
         tdata_cols <- c('Order',
                         'Instruction')
@@ -353,27 +356,6 @@ shinyServer(function(input, output, session) {
                      , style = "color:white;float:right;padding-top:5px;white-space:nowrap;")
         ) # insertUI
         
-        # insert add new buttons on main page
-        # still need these because someone could delete 
-            # all the food_ingredients or all the steps for a food
-            # alternatively, I could set a trigger to add when food is added
-            # plus a check constraint to prevent the last one being deleted.
-        # insertUI(
-        #     selector = "#recipes",
-        #     where = "afterEnd",
-        #     ui = actionButton("add_food", "Add Food", icon = icon("plus"), class = "btn-success")
-        # ) # insertUI
-        # insertUI(
-        #     selector = "#ingredients",
-        #     where = "afterEnd",
-        #     ui = actionButton("add_food_ingredients", "Add Ingredient", icon = icon("plus"), class = "btn-success")
-        # ) # insertUI
-        # insertUI(
-        #     selector = "#steps",
-        #     where = "afterEnd",
-        #     ui = actionButton("add_steps", "Add Step", icon = icon("plus"), class = "btn-success")
-        # ) # insertUI
-        
         showTab("admin_tabs", target = 'Food Type')
         showTab("admin_tabs", target = 'Ingredient Type')
         showTab("admin_tabs", target = 'Ingredient')
@@ -427,19 +409,15 @@ observeEvent(input$confirm_delete_food, {
     
     # update datatable
     rv$reval_v.food.df <- !rv$reval_v.food.df
-    # rv$v.food.df <- tbl(con,'v_food') %>% collect()
 }) # observeEvent confirm_delete_food
 
 # _Delete Step -----------------------------------------------------
 observeEvent(input$delete_step, {
     rowNum <- get_id_from_input(input$delete_step)
-    step_id.c <- rv$step.df %>%
-                    filter(food_id == v.food.df.r()$id[input$recipes_rows_selected]) %>%
-                    arrange(instruction_order) %>%
-                    pull(id)
+    step_id.c <- step.df.r() %>% pull(id)
     rv$step_to_delete <- step_id.c[[rowNum]] 
     
-    if(length(step.df) == 1){ # there is only one step left
+    if(length(step_id.c) == 1){ # there is only one step left
         showModal(modalDialog(
             title = tags$b("You can't delete ALL the steps!",style="color:red;")
             , p("Try editing this step instead so the instructions are helpful.")
@@ -451,7 +429,7 @@ observeEvent(input$delete_step, {
         , class = "delete"
         , "Step ID: ",rv$step_to_delete, br()
         , "Step Order: "
-        , rv$step.df %>% filter(id == rv$step_to_delete) %>% pull(instruction_order)
+        , step.df.r() %>% filter(id == rv$step_to_delete) %>% pull(instruction_order)
         , fluidRow(column(6,actionButton("confirm_delete_step","Delete Step",icon("trash"), class = "btn-danger"))
                    , column(6,modalButton("Cancel",icon("times"))))
         , footer = NULL , easyClose = TRUE)) # showModal
@@ -467,7 +445,7 @@ observeEvent(input$confirm_delete_step, {
     removeModal()
     
     # update datatable
-    rv$step.df <- tbl(con,'step') %>% collect()
+    rv$reval_step.df <- !rv$reval_step.df
 }) # observeEvent confirm_delete_step
 
 # _Delete Food_Ing ------------------------------------
@@ -501,7 +479,6 @@ observeEvent(input$confirm_delete_food_ing, {
     
     # update datatable
     rv$reval_v.food_ing.df <- !rv$reval_v.food_ing.df
-    # rv$v.food_ing.df <- tbl(con,'v_food_ing') %>% collect()
 }) # observeEvent confirm_delete_food_ing
 
 # Edit Buttons --------------------------------------------------------------
@@ -509,9 +486,6 @@ observeEvent(input$confirm_delete_food_ing, {
 observeEvent(input$edit_food, {
     rowNum <- get_id_from_input(input$edit_food)
     rv$food_to_edit <- v.food.df.r()$id[[rowNum]] 
-    
-    # select_foodtype <- rv$foodtype.df$id
-    # names(select_foodtype) <- rv$foodtype.df$foodtype
     
     showModal(modalDialog(
         title = tags$b("Edit Food")
@@ -528,9 +502,7 @@ observeEvent(input$edit_food, {
                       , placeholder = 'A brief but informative description...')
         , numericInput('serving_edit','Servings',4,0,40,1,width = '100%')
         , checkboxInput('meal_prep_edit','Good for Meal Prep?',v.food.df.r()$meal_prep[[rowNum]])
-        , selectInput('food_foodtype_edit','Type',foodtype()
-                      # ,select_foodtype
-                      ,v.food.df.r()$foodtype_id[[rowNum]])
+        , selectInput('food_foodtype_edit','Type',foodtype(),v.food.df.r()$foodtype_id[[rowNum]])
         , fluidRow(column(4,actionButton("confirm_edit_food","Save Edits",icon("pencil-alt"), class = "btn-warning"))
                    , column(4,actionButton("add_food", "Add Food", icon = icon("plus"), class = "btn-success"))
                    , column(4,modalButton("Cancel",icon("times"))))
@@ -561,7 +533,6 @@ observeEvent(input$confirm_edit_food, {
     
     # update datatable
     rv$reval_v.food.df <- !rv$reval_v.food.df
-    # rv$v.food.df <- tbl(con,'v_food') %>% collect()
 }) # observeEvent confirm_delete_food
 
 # _Edit Food_ing -------------------
@@ -612,24 +583,19 @@ observeEvent(input$confirm_edit_food_ing, {
     
     # update datatable
     rv$reval_v.food_ing.df <- !rv$reval_v.food_ing.df
-    # rv$v.food_ing.df <- tbl(con,'v_food_ing') %>% collect()
 }) # observeEvent confirm_edit_food_ing
 
 # _Edit Step -------------------
 observeEvent(input$edit_step, {
     rowNum <- get_id_from_input(input$edit_step)
-    # this should be a reactive value instead to avoid multiple calculations.
-    steps_for_food.df <- rv$step.df %>%
-        filter(food_id == v.food.df.r()$id[input$recipes_rows_selected]) %>%
-        arrange(instruction_order)
-    rv$step_to_edit <- (steps_for_food.df)[rowNum,]
+    rv$step_to_edit <- step.df.r()[rowNum,]
     
     showModal(modalDialog(
         title = tags$b("Edit Step: ",rv$step_to_edit$instruction_order)
         , class = "edit"
         , numericInput('actiontime_edit','Total Minutes to Complete This Step'
                        , rv$step_to_edit$actiontime,0,120,1,width = '100%')
-        , sliderInput('step_order_edit','Order #',1,max(steps_for_food.df$instruction_order) + 1
+        , sliderInput('step_order_edit','Order #',1,max(step.df.r()$instruction_order) + 1
                       , rv$step_to_edit$instruction_order,1)
         , textAreaInput('instruction_edit',
                         'Instructions',height = "120px",width = "100%" # because max-width is 100%!
@@ -658,7 +624,7 @@ observeEvent(input$confirm_edit_step, { # if confirmed then update in DB
     removeModal()
     
     # update datatable
-    rv$step.df <- tbl(con,'step') %>% collect()
+    rv$reval_step.df <- !rv$reval_step.df
 }) # observeEvent confirm_edit_step
 
 # Add Buttons ######################
@@ -679,10 +645,8 @@ observeEvent(input$add_food, {
     
     # refresh tables from DB
     rv$reval_v.food.df <- !rv$reval_v.food.df
-    # rv$v.food.df <- tbl(con,'v_food') %>% collect()
-    rv$step.df <- tbl(con,'step') %>% collect()
+    rv$reval_step.df <- !rv$reval_step.df
     rv$reval_v.food_ing.df <- !rv$reval_v.food_ing.df
-    # rv$v.food_ing.df = tbl(con,'v_food_ing') %>% collect()
 }) # observeEvent add_food
 
 # _Add Step ------------------------------------
@@ -699,7 +663,7 @@ observeEvent(input$add_step, {
     removeModal()
     
     # update datatable
-    rv$step.df <- tbl(con,'step') %>% collect()
+    rv$reval_step.df <- !rv$reval_step.df
 }) # observeEvent add_step
 
 # _Add Food_Ing ---------------------------------
@@ -717,7 +681,6 @@ observeEvent(input$add_food_ing, {
     
     # update datatable
     rv$reval_v.food_ing.df <- !rv$reval_v.food_ing.df
-    # rv$v.food_ing.df <- tbl(con,'v_food_ing') %>% collect()
 }) # observeEvent confirm_edit_food_ing
 
 }) # shinyServer 
