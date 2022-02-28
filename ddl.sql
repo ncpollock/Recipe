@@ -23,7 +23,7 @@ DROP TABLE IF EXISTS IngredientType CASCADE;
 CREATE TABLE FoodType
 (		
   ID serial PRIMARY KEY
-  , FoodType varchar NOT NULL 
+  , FoodType varchar UNIQUE NOT NULL 
 );
 COMMENT ON TABLE FoodType IS 'How or when we typically eat a food.';
 INSERT INTO FoodType (FoodType) VALUES
@@ -37,7 +37,7 @@ INSERT INTO FoodType (FoodType) VALUES
 CREATE TABLE IngredientType
 (		
   ID serial PRIMARY KEY
-  , IngredientType varchar NOT NULL
+  , IngredientType varchar UNIQUE NOT NULL
   , icon varchar DEFAULT 'question'
   , color varchar
 );
@@ -57,7 +57,7 @@ INSERT INTO IngredientType (IngredientType,icon,color) VALUES
 CREATE TABLE Measure
 (		
   ID serial PRIMARY KEY
-  , Measurement varchar UNIQUE
+  , Measurement varchar UNIQUE NOT NULL
 );
 COMMENT ON TABLE Measure IS 'How we measure quantities of a food.';
 INSERT INTO Measure (Measurement) VALUES
@@ -237,3 +237,21 @@ CREATE VIEW v_food_ing AS
 		i.ingredienttype_id = it.id
 	JOIN measure m ON
 		i.measure_id = m.id;
+		
+-- Triggers -------------------------------------------------------------------------------
+-- add a dummy tuple for food_ingredient and step when a Food is added.
+DROP TRIGGER IF EXISTS food_added_trigger ON food;
+DROP FUNCTION IF EXISTS food_added;
+CREATE FUNCTION food_added() RETURNS trigger AS $$
+        BEGIN
+                INSERT INTO food_ingredient(food_id,ingredient_id,qty,optional)
+        		VALUES(NEW.id,6,1,'t');
+				
+				INSERT INTO step(food_id,actiontime,instruction_order,instruction)
+        		VALUES(NEW.id,5,1,'Click the edit button to change this placeholder text.');
+				RETURN NEW;
+        END;
+$$ LANGUAGE 'plpgsql' SECURITY DEFINER;
+
+CREATE TRIGGER food_added_trigger AFTER INSERT ON food
+        FOR EACH ROW EXECUTE PROCEDURE food_added();
