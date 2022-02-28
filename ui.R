@@ -104,11 +104,11 @@ shinyUI(
                  ) # mainPanel
                      ) # sideBarLayout
                    ) # tabPanel
-               , tabPanel('Admin.',icon = icon("tools"),value = "admin"
+               , tabPanel('Admin',icon = icon("tools"),value = "admin"
                           #tabbox with 'Food','Ingredients','Steps'
                           , div(id = "sign-in"
-                                , textInput('username',HTML(paste(icon("user-circle"),'Username')),
-                                            placeholder = 'Enter your username...')
+                                , textInput('username',HTML(paste(icon("user-circle"),'Username'))
+                                            , placeholder = 'Enter your username...')
                             , passwordInput('admin_pass',HTML(paste(icon("lock"),'Password')),
                                             placeholder = 'Enter your password...')
                             , actionButton("sign_in", "Sign In", icon = icon("unlock-alt"))
