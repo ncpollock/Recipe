@@ -8,6 +8,9 @@
     # fix errors when buttons are selected, it's like a shadow row is selected
     # auto-select DT
 
+# Optional
+    # show ing type icon when editing / adding ingredients.
+
 shinyServer(function(input, output, session) {
     
     observe({
@@ -21,25 +24,36 @@ shinyServer(function(input, output, session) {
     rv <- reactiveValues(
         admin = 0 # for CUD when signed in.
         , food.df = tbl(con,'food') %>% collect()
-        , step.df = tbl(con,'step') %>% collect()
-        # , ingredient.df = tbl(con,'ingredient') %>% collect()
+        , step.df = tbl(con,'step') %>% collect() # should separate this and limit to just the step for the selected food
+        , ingredient.df = tbl(con,'ingredient') %>% collect()
         # , food_ing.df = tbl(con,'food_ingredient') %>% collect()
         , foodtype.df = tbl(con,'foodtype') %>% collect()
         # , ingredienttype.df = tbl(con,'ingredienttype') %>% collect()
-        # , measure.df = tbl(con,'measure') %>% collect()
+        , measure.df = tbl(con,'measure') %>% collect()
         , v.food.df = tbl(con,'v_food') %>% collect()
         , v.food_ing.df = tbl(con,'v_food_ing') %>% collect()
     )
     
-    # will need these in reactive as standard inputs
-    # for selectInput
-    # select_measure <- rv$measure.df$id
-    # names(select_measure) <- rv$measure.df$measurement
-    # 
-    # select_ingredient <- rv$ingredient.df$id
-    # names(select_ingredient) <- rv$ingredient.df$ingredient
+    # values for selectInputs
+    foodtype <- reactive({
+        f <- rv$foodtype.df$id
+        names(f) <- foodtype.df$foodtype
+        f
+    })
+    ingredient <- reactive({
+        ing <- rv$ingredient.df$id
+        names(ing) <- rv$ingredient.df$ingredient
+        ing
+    })
+    observe({
+        # select_measure <- rv$measure.df$id
+        # names(select_measure) <- rv$measure.df$measurement
+    })
     
     v.food.df.r <- reactive({
+        
+        # might be able to optimize by doing this all at the DB in SQL
+            # or dplyr, eg v.food.df = tbl(con,'v_food') %>% collect()
         
         v.food.df.r = rv$v.food.df %>%
             filter(total_time <= input$total_time) 
@@ -249,10 +263,10 @@ shinyServer(function(input, output, session) {
         
         # when DT ingredients row is clicked
         showModal(modalDialog(
-            title = "Measurement Conversions",
-            p("Conversions for: ",ing.r$amount_desc),
-            DTOutput('conversions'),
-            easyClose = TRUE
+            title = "Measurement Conversions"
+            , p("Conversions for: ",ing.r$amount_desc)
+            , DTOutput('conversions')
+            , footer = NULL, easyClose = TRUE
         ))
     }) # observeEvent
 
@@ -269,8 +283,8 @@ shinyServer(function(input, output, session) {
     })
     
     observeEvent(input$sign_in, {
-
-        shinyjs::disable("sign_in")
+        
+        updateNavbarPage(session, "tabs", selected = "Browse")
         
         can_connect <- dbCanConnect(con_config$driver,
                                     host = con_config$host,
@@ -280,6 +294,7 @@ shinyServer(function(input, output, session) {
         
         # if user failed to connect, tell them.
         if(!can_connect | input$username == "" | input$admin_pass == ""){
+            updateNavbarPage(session, "tabs", selected = "Admin")
             showModal(modalDialog(
                 title = div(icon('times-circle-o')," Login Failed!",style="color:red;")
                 , "Check that your username and password are correct.
@@ -288,7 +303,6 @@ shinyServer(function(input, output, session) {
                 , footer = NULL
                 , easyClose = TRUE
             ))
-            shinyjs::enable("sign_in")
         } else { # successful login
             rv$con_admin <- dbConnect(con_config$driver,
                          host = con_config$host,
@@ -311,28 +325,31 @@ shinyServer(function(input, output, session) {
         ) # insertUI
         
         # insert add new buttons on main page
-        insertUI(
-            selector = "#recipes",
-            where = "afterEnd",
-            ui = actionButton("add_food", "Add Food", icon = icon("plus"), class = "btn-success")
-        ) # insertUI
-        insertUI(
-            selector = "#ingredients",
-            where = "afterEnd",
-            ui = actionButton("add_food_ingredients", "Add Ingredient", icon = icon("plus"), class = "btn-success")
-        ) # insertUI
-        insertUI(
-            selector = "#steps",
-            where = "afterEnd",
-            ui = actionButton("add_steps", "Add Step", icon = icon("plus"), class = "btn-success")
-        ) # insertUI
+        # still need these because someone could delete 
+            # all the food_ingredients or all the steps for a food
+            # alternatively, I could set a trigger to add when food is added
+            # plus a check constraint to prevent the last one being deleted.
+        # insertUI(
+        #     selector = "#recipes",
+        #     where = "afterEnd",
+        #     ui = actionButton("add_food", "Add Food", icon = icon("plus"), class = "btn-success")
+        # ) # insertUI
+        # insertUI(
+        #     selector = "#ingredients",
+        #     where = "afterEnd",
+        #     ui = actionButton("add_food_ingredients", "Add Ingredient", icon = icon("plus"), class = "btn-success")
+        # ) # insertUI
+        # insertUI(
+        #     selector = "#steps",
+        #     where = "afterEnd",
+        #     ui = actionButton("add_steps", "Add Step", icon = icon("plus"), class = "btn-success")
+        # ) # insertUI
         
         showTab("admin_tabs", target = 'Food Type')
         showTab("admin_tabs", target = 'Ingredient Type')
         showTab("admin_tabs", target = 'Ingredient')
         showTab("admin_tabs", target = 'Measure')
     } # else
-
 }) # observeEvent sign_in
 
 
@@ -381,7 +398,6 @@ observeEvent(input$confirm_delete_food, {
     
     # update datatable
     rv$v.food.df <- tbl(con,'v_food') %>% collect()
-    
 }) # observeEvent confirm_delete_food
 
 # _Delete Step -----------------------------------------------------
@@ -456,13 +472,13 @@ observeEvent(input$edit_food, {
     rowNum <- get_id_from_input(input$edit_food)
     rv$food_to_edit <- v.food.df.r()$id[[rowNum]] 
     
-    select_foodtype <- rv$foodtype.df$id
-    names(select_foodtype) <- rv$foodtype.df$foodtype
+    # select_foodtype <- rv$foodtype.df$id
+    # names(select_foodtype) <- rv$foodtype.df$foodtype
     
     showModal(modalDialog(
         title = tags$b("Edit Food")
         , class = "edit"
-        , paste("Food ID: ",rv$food_to_edit)
+        , ifelse(debug_mode,paste("Food ID: ",rv$food_to_edit),'')
         , textInput('food_edit',
                   'Food'
                   , value = v.food.df.r()$food[[rowNum]]
@@ -474,9 +490,12 @@ observeEvent(input$edit_food, {
                       , placeholder = 'A brief but informative description...')
         , numericInput('serving_edit','Servings',4,0,40,1,width = '100%')
         , checkboxInput('meal_prep_edit','Good for Meal Prep?',v.food.df.r()$meal_prep[[rowNum]])
-        , selectInput('food_foodtype_edit','Type',select_foodtype,v.food.df.r()$foodtype_id[[rowNum]])
-        , fluidRow(column(6,actionButton("confirm_edit_food","Save Edits",icon("pencil-alt"), class = "btn-success"))
-                   , column(6,modalButton("Cancel",icon("times"))))
+        , selectInput('food_foodtype_edit','Type',foodtype()
+                      # ,select_foodtype
+                      ,v.food.df.r()$foodtype_id[[rowNum]])
+        , fluidRow(column(4,actionButton("confirm_edit_food","Save Edits",icon("pencil-alt"), class = "btn-warning"))
+                   , column(4,actionButton("add_food", "Add Food", icon = icon("plus"), class = "btn-success"))
+                   , column(4,modalButton("Cancel",icon("times"))))
         , footer = NULL
         , easyClose = TRUE
     ))
@@ -504,10 +523,18 @@ observeEvent(input$confirm_edit_food, {
     
     # update datatable
     rv$v.food.df <- tbl(con,'v_food') %>% collect()
-    
 }) # observeEvent confirm_delete_food
 
 # _Edit Food_ing -------------------
+output$amountUI <- renderUI({ # to handle food measurments
+    numericInput('amount_edit'
+                 , glue('Amount ({rv$ingredient.df %>% 
+                              filter(id == input$food_ing_edit) %>%
+                              inner_join(rv$measure.df,by=c("measure_id"="id")) %>%
+                              pull(measurement)})')
+                 ,rv$food_ing_to_edit$qty,0,120,1,width = '100%')
+})
+
 observeEvent(input$edit_food_ing, {
     rowNum <- get_id_from_input(input$edit_food_ing)
     rv$food_ing_to_edit <- v.food_ing.df.r()[rowNum,]
@@ -517,34 +544,36 @@ observeEvent(input$edit_food_ing, {
         , class = "edit"
         , "Food ID: ",rv$food_ing_to_edit$food_id, br()
         , "Ingredient ID: ", rv$food_ing_to_edit$ingredient_id, br()
-        , numericInput('amount_edit',glue('Amount ({rv$food_ing_to_edit$measurement}s)')
-                       ,rv$food_ing_to_edit$qty,0,120,1,width = '100%')
+        , selectInput('food_ing_edit','Ingredient',ingredient(),rv$food_ing_to_edit$ingredient_id)
+        , uiOutput('amountUI')
         , checkboxInput('food_ing_opt_edit','Optional?',rv$food_ing_to_edit$optional)
-        , fluidRow(column(6,actionButton("confirm_edit_food_ing","Save Edits",icon("pencil-alt"), class = "btn-success"))
-                   , column(6,modalButton("Cancel",icon("times"))))
+        , fluidRow(column(4,actionButton("confirm_edit_food_ing","Save Edits",icon("pencil-alt"), class = "btn-warning"))
+                   , column(5,actionButton("add_food_ing", "Add Ingredient", icon = icon("plus"), class = "btn-success"))
+                   , column(3,modalButton("Cancel",icon("times"))))
         , footer = NULL
         , easyClose = TRUE
     ))
-}) # observeEvent edit_food
+}) # observeEvent edit_food_ing
 
-# if confirmed then update in DB
 observeEvent(input$confirm_edit_food_ing, {
     dbExecute(rv$con_admin, sqlInterpolate(
         rv$con_admin,
         "UPDATE food_ingredient
         SET qty = ?QTY
                 , optional = ?optional
+                , ingredient_id = ?ing_edit_id
         WHERE food_id = ?f_id AND ingredient_id = ?ing_id;"
-           , f_id = rv$food_ing_to_edit$food_id, ing_id = rv$food_ing_to_edit$ingredient_id
-           , QTY = input$amount_edit
-           , optional = as.character(input$food_ing_opt_edit))) # dbExecute
+        , f_id = rv$food_ing_to_edit$food_id
+        , ing_id = rv$food_ing_to_edit$ingredient_id
+        , ing_edit_id = input$food_ing_edit
+        , QTY = input$amount_edit
+        , optional = as.character(input$food_ing_opt_edit))) # dbExecute
     
     removeModal()
     
     # update datatable
     rv$v.food_ing.df <- tbl(con,'v_food_ing') %>% collect()
-    
-}) # observeEvent confirm_delete_food
+}) # observeEvent confirm_edit_food_ing
 
 # _Edit Step -------------------
 observeEvent(input$edit_step, {
@@ -566,15 +595,14 @@ observeEvent(input$edit_step, {
                         'Instructions',height = "120px",width = "100%" # because max-width is 100%!
                         , value = rv$step_to_edit$instruction
                         , placeholder = 'Clear and detailed. Can sometimes be several sentences long.')
-        , fluidRow(column(6,actionButton("confirm_edit_step","Save Edits",icon("pencil-alt"), class = "btn-success"))
-                   , column(6,modalButton("Cancel",icon("times"))))
-        , footer = NULL
-        , easyClose = TRUE
+        , fluidRow(column(4,actionButton("confirm_edit_step","Save Edits",icon("pencil-alt"), class = "btn-warning"))
+                   , column(4,actionButton("add_step", "Add Step", icon = icon("plus"), class = "btn-success"))
+                   , column(4,modalButton("Cancel",icon("times"))))
+        , footer = NULL, easyClose = TRUE
     ))
-}) # observeEvent edit_food
+}) # observeEvent edit_step
 
-# if confirmed then update in DB
-observeEvent(input$confirm_edit_step, {
+observeEvent(input$confirm_edit_step, { # if confirmed then update in DB
     dbExecute(rv$con_admin, sqlInterpolate(
         rv$con_admin,
         "UPDATE step
@@ -591,10 +619,60 @@ observeEvent(input$confirm_edit_step, {
     
     # update datatable
     rv$step.df <- tbl(con,'step') %>% collect()
-    
-}) # observeEvent confirm_delete_food
+}) # observeEvent confirm_edit_step
 
 # Add Buttons ######################
+# _Add Food ----------------------------
+observeEvent(input$add_food, {
+    dbExecute(rv$con_admin, sqlInterpolate(
+        rv$con_admin
+        , "INSERT INTO food(foodtype_id,food,description,serving,meal_prep)
+            VALUES(?foodtype_id,?food,?description,?serving,?meal_prep);"
+       , foodtype_id = input$food_foodtype_edit
+       , food = input$food_edit
+       , description = input$description_edit
+       , serving = input$serving_edit
+       , meal_prep = as.character(input$meal_prep_edit))
+    ) # dbExecute
+    
+    removeModal()
+    
+    # update datatable
+    rv$v.food.df <- tbl(con,'v_food') %>% collect()
+}) # observeEvent add_food
+
+# _Add Step ------------------------------------
+observeEvent(input$add_step, {
+    dbExecute(rv$con_admin, sqlInterpolate(
+        rv$con_admin,
+        "INSERT INTO step(actiontime,instruction_order,instruction)
+        VALUES(?at,?inst_ord,?inst);"
+        , at = input$actiontime_edit
+        , inst_ord = input$step_order_edit
+        , inst = input$instruction_edit)) # dbExecute
+    
+    removeModal()
+    
+    # update datatable
+    rv$step.df <- tbl(con,'step') %>% collect()
+}) # observeEvent add_step
+
+# _Add Food_Ing ---------------------------------
+observeEvent(input$add_food_ing, {
+    dbExecute(rv$con_admin, sqlInterpolate(
+        rv$con_admin,
+        "INSERT INTO food_ingredient(food_id,ingredient_id,qty,optional)
+        VALUES(?f_id,?ing_id,?QTY,?optional);"
+        , f_id = rv$food_ing_to_edit$food_id
+        , ing_id = input$food_ing_edit
+        , QTY = input$amount_edit
+        , optional = as.character(input$food_ing_opt_edit))) # dbExecute
+    
+    removeModal()
+    
+    # update datatable
+    rv$v.food_ing.df <- tbl(con,'v_food_ing') %>% collect()
+}) # observeEvent confirm_edit_food_ing
 
 }) # shinyServer 
 # END ------------------------
