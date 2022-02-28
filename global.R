@@ -11,7 +11,6 @@ library(lubridate)
 library(bslib)
 library(shinyWidgets) # for better checkbox inputs
 library(DBI)
-library(shinyjs) # for enable/disable buttons
 
 con_config <- config::get("dbcon")
 con <- dbConnect(con_config$driver,
