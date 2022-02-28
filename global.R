@@ -1,4 +1,7 @@
 # GLOBAL START ------------------------------------
+# add debug-friendly UI elements e.g., surrogate primary keys
+debug_mode <- TRUE
+
 library(shiny)
 library(shinydashboard) # just for some aesthetics eg box()
 library(DT)
@@ -16,12 +19,6 @@ con <- dbConnect(con_config$driver,
                  dbname = con_config$dbname,
                  user = con_config$user,
                  password = con_config$pwd)
-
-# for use in UI, this will need to be in the server eventually
-  # ie when I create admin page for adding new types
-foodtype.df = tbl(con,'foodtype') %>% collect()
-foodtype <- foodtype.df$id
-names(foodtype) <- foodtype.df$foodtype
 
 # consider pool
 # pool <- dbPool(
