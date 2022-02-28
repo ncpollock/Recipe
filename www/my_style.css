@@ -79,3 +79,26 @@ hr {
   font-weight: bold;
   text-align: center;
 }
+
+
+/* Lines after major Headers */
+h1{
+  border-bottom:5px solid orange; 
+  padding-bottom:2px;
+}
+h2{
+  border-bottom:3px solid #CCC; /* gray */
+  padding-bottom:3px;
+  font-weight: bold;
+  color: black;
+}
+h3{
+  border-bottom:1px solid #CCC;
+  padding-bottom:3px;
+}
+
+/* modal title in shiny */
+h4{
+  font-weight: bold;
+  color: black;
+}
