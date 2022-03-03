@@ -27,33 +27,53 @@ shinyServer(function(input, output, session) {
         admin = 0 # for CUD when signed in.
         # , food.df = tbl(con,'food') %>% collect()
         , reval_step.df = TRUE
-        , step.df = tbl(con,'step') %>% collect()
-        , ingredient.df = tbl(con,'ingredient') %>% collect()
+        # , step.df = tbl(con,'step') %>% collect()
+        , reval_ingredient.df = TRUE
+        # , ingredient.df = tbl(con,'ingredient') %>% collect()
         # , food_ing.df = tbl(con,'food_ingredient') %>% collect()
-        , foodtype.df = tbl(con,'foodtype') %>% collect()
+        # , foodtype.df = tbl(con,'foodtype') %>% collect()
+        , reval_foodtype.df = TRUE
         # , ingredienttype.df = tbl(con,'ingredienttype') %>% collect()
-        , measure.df = tbl(con,'measure') %>% collect()
+        , reval_measure.df = TRUE
+        # , measure.df = tbl(con,'measure') %>% collect()
         # , v.food.df = tbl(con,'v_food') %>% collect()
         , reval_v.food.df = TRUE
         # , v.food_ing.df = tbl(con,'v_food_ing') %>% collect()
         , reval_v.food_ing.df = TRUE
     )
     
+    foodtype.df <- reactive({
+        rv$reval_foodtype.df
+        ft.df = tbl(con,'foodtype') %>% collect()
+        ft.df
+    })
     # values for selectInputs
     foodtype <- reactive({
-        f <- rv$foodtype.df$id
-        names(f) <- foodtype.df$foodtype
+        # foodtype.df() instead of rv$foodtype.df?
+        f <- foodtype.df()$id
+        names(f) <- foodtype.df()$foodtype
+        # f <- rv$foodtype.df$id
+        # names(f) <- foodtype.df$foodtype
         f
     })
+    
+    measure.df <- reactive({
+        rv$reval_measure.df
+        m.df = tbl(con,'measure') %>% collect()
+        m.df
+    })
+    
+    ingredient.df <- reactive({
+        rv$reval_ingredient.df
+        i.df <- tbl(con,'ingredient') %>% collect()
+        i.df
+    })
     ingredient <- reactive({
-        ing <- rv$ingredient.df$id
-        names(ing) <- rv$ingredient.df$ingredient
+        ing <- ingredient.df()$id
+        names(ing) <- ingredient.df()$ingredient
         ing
     })
-    observe({
-        # select_measure <- rv$measure.df$id
-        # names(select_measure) <- rv$measure.df$measurement
-    })
+
     
     v.food.df.r <- reactive({
         
@@ -356,10 +376,12 @@ shinyServer(function(input, output, session) {
                      , style = "color:white;float:right;padding-top:5px;white-space:nowrap;")
         ) # insertUI
         
-        showTab("admin_tabs", target = 'Food Type')
+        showTab("admin_tabs", target = 'Food Type',select = TRUE,session)
         showTab("admin_tabs", target = 'Ingredient Type')
         showTab("admin_tabs", target = 'Ingredient')
         showTab("admin_tabs", target = 'Measure')
+        updateTabsetPanel(session,"admin_tabs",selected = "Measure")
+        # rv$reval_foodtype.df <- !rv$reval_foodtype.df
     } # else
 }) # observeEvent sign_in
 
@@ -538,9 +560,9 @@ observeEvent(input$confirm_edit_food, {
 # _Edit Food_ing -------------------
 output$amountUI <- renderUI({ # to handle food measurments
     numericInput('amount_edit'
-                 , glue('Amount ({rv$ingredient.df %>% 
+                 , glue('Amount ({ingredient.df() %>% 
                               filter(id == input$food_ing_edit) %>%
-                              inner_join(rv$measure.df,by=c("measure_id"="id")) %>%
+                              inner_join(measure.df(),by=c("measure_id"="id")) %>%
                               pull(measurement)})')
                  ,rv$food_ing_to_edit$qty,0,120,1,width = '100%')
 })
@@ -682,6 +704,15 @@ observeEvent(input$add_food_ing, {
     # update datatable
     rv$reval_v.food_ing.df <- !rv$reval_v.food_ing.df
 }) # observeEvent confirm_edit_food_ing
+
+# Admin --------------------------------------------------
+# _renderDT -------------
+output$foodtype <- renderAdminDT(foodtype.df(),'foodtype')
+# output$ing_type <- renderAdminDT(ing_type(),'ing_type')
+output$ingredient <- renderAdminDT(ingredient.df(),'ingredient')
+output$measure <- renderAdminDT(measure.df(),'measure')
+
+# _Button Actions ------------------------
 
 }) # shinyServer 
 # END ------------------------

@@ -106,6 +106,7 @@ shinyUI(
                  ) # mainPanel
                      ) # sideBarLayout
                    ) # tabPanel
+               # Admin Tab --------------------
                , tabPanel('Admin',icon = icon("tools"),value = "admin"
                           #tabbox with 'Food','Ingredients','Steps'
                           , div(id = "sign-in"
@@ -116,12 +117,10 @@ shinyUI(
                             , actionButton("sign_in", "Sign In", icon = icon("unlock-alt"))
                           ) # div
                           , tabsetPanel(id = "admin_tabs"
-                            , tabPanel("Food Type"
-                                    , p("List of food types and the ability to add, edit, or delete.")
-                                     ) # Food tabPanel
+                            , tabPanel("Food Type", DTOutput('foodtype'))
                             , tabPanel("Ingredient Type")
-                            , tabPanel("Ingredient")
-                            , tabPanel("Measure")
+                            , tabPanel("Ingredient", DTOutput('ingredient'))
+                            , tabPanel("Measure", DTOutput('measure'))
                           )
                          ) # tabPanel admin
                , tabPanel('Source Code',icon = icon("sign-out-alt"),tags$style("float: right;"),p("To be added..."))

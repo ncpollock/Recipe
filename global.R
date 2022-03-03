@@ -145,4 +145,21 @@ get_id_from_input <- function(inp_name) {
 }
 
 
+renderAdminDT <- function(tdata,btn_suffix){
+  renderDT({
+    tdata$Delete <- init_buttons(nrow(tdata),paste0("delete_",btn_suffix), icon = icon("trash"), class = "btn-danger")
+    tdata$Edit <- init_buttons(nrow(tdata),paste0("edit_",btn_suffix), icon = icon("pencil-alt"), class = "btn-warning")
+    dis_but_order <- list(targets = (ncol(tdata)-1):ncol(tdata)-1, orderable = FALSE) # disable ordering on buttons
+    
+    datatable(tdata, rownames = FALSE, selection = 'none'
+              , options = list(pageLength = 30
+                               , columnDefs = list(dis_but_order)
+                               , dom = 'tp'
+                               )
+              ) %>%
+                formatStyle(names(tdata), verticalAlign='middle')
+  })
+
+}
+
 # END ------------------------------
