@@ -118,7 +118,7 @@ shinyUI(
                           ) # div
                           , tabsetPanel(id = "admin_tabs"
                             , tabPanel("Food Type", DTOutput('foodtype'))
-                            , tabPanel("Ingredient Type")
+                            , tabPanel("Ingredient Type", DTOutput('ing_type'))
                             , tabPanel("Ingredient", DTOutput('ingredient'))
                             , tabPanel("Measure", DTOutput('measure'))
                           )

@@ -34,6 +34,7 @@ shinyServer(function(input, output, session) {
         # , foodtype.df = tbl(con,'foodtype') %>% collect()
         , reval_foodtype.df = TRUE
         # , ingredienttype.df = tbl(con,'ingredienttype') %>% collect()
+        , reval_ing_type.df = TRUE
         , reval_measure.df = TRUE
         # , measure.df = tbl(con,'measure') %>% collect()
         # , v.food.df = tbl(con,'v_food') %>% collect()
@@ -73,7 +74,12 @@ shinyServer(function(input, output, session) {
         names(ing) <- ingredient.df()$ingredient
         ing
     })
-
+    
+    ing_type.df <- reactive({
+        rv$reval_ing_type.df
+        it.df <- tbl(con,'ingredienttype') %>% collect()
+        it.df
+    })
     
     v.food.df.r <- reactive({
         
@@ -708,11 +714,54 @@ observeEvent(input$add_food_ing, {
 # Admin --------------------------------------------------
 # _renderDT -------------
 output$foodtype <- renderAdminDT(foodtype.df(),'foodtype')
-# output$ing_type <- renderAdminDT(ing_type(),'ing_type')
+output$ing_type <- renderAdminDT(ing_type.df(),'ing_type')
 output$ingredient <- renderAdminDT(ingredient.df(),'ingredient')
 output$measure <- renderAdminDT(measure.df(),'measure')
 
-# _Button Actions ------------------------
+# _Delete Buttons ------------------------
+
+# function to reuse for all admin page.
+observeDelete <- function(tdata,btn_suffix,name){
+    observeEvent(input[[paste0('delete_',btn_suffix)]], {
+        rowNum <- get_id_from_input(input[[paste0('delete_',btn_suffix)]])
+        rv[[paste0(btn_suffix,'_to_delete')]] <- tdata[rowNum,]
+        
+        showModal(modalDialog(
+            title = tags$b("Are you sure you want to delete the following item?",style="color:red;")
+            , class = "delete"
+            , "Internal ID: ", tdata[rowNum,]$id, br()
+            , paste0(name,": ",tdata[rowNum,][2])
+            , fluidRow(column(6,actionButton(paste0("confirm_delete_",btn_suffix)
+                                             ,paste("Delete",name),icon("trash"), class = "btn-danger"))
+                       , column(6,modalButton("Cancel",icon("times"))))
+            , footer = NULL, easyClose = TRUE
+        ))
+    }) } # function
+
+observeDelete(foodtype.df(),'foodtype','Food Type')
+observeDelete(ing_type.df(),'ing_type','Ing. Type')
+observeDelete(ingredient.df(),'ingredient','Ingredient')
+observeDelete(measure.df(),'measure','Measure')
+
+observeConfDelete <- function(btn_suffix){observeEvent(input[[paste0('confirm_delete_',btn_suffix)]], {
+    dbExecute(rv$con_admin, sqlInterpolate(rv$con_admin,
+           glue("DELETE FROM {btn_suffix} WHERE id = ?id;")
+           , id = rv[[paste0(btn_suffix,'_to_delete')]]$id
+    )) # dbExecute
+    
+    removeModal()
+    
+    # update datatable
+    rv[[glue('reval_{btn_suffix}.df')]] <- !rv[[glue('reval_{btn_suffix}.df')]]
+}) } # function
+
+observeConfDelete('foodtype')
+observeConfDelete('ing_type')
+observeConfDelete('ingredient')
+observeConfDelete('measure')
+
+# _Edit Buttons ------------------------
+
 
 }) # shinyServer 
 # END ------------------------
