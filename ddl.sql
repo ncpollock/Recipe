@@ -3,8 +3,9 @@ CREATE DATABASE recipe CONNECTION LIMIT 20;
 COMMENT ON DATABASE recipe
     IS 'A transactional database for our favorite recipes.';
 
-CREATE USER all_select WITH PASSWORD 'strong_password';
-GRANT SELECT PRIVILEGES ON DATABASE recipe TO all_select;
+CREATE DATABASE test_recipe CONNECTION LIMIT 5;
+COMMENT ON DATABASE test_recipe
+    IS 'TEST instance of a transactional database for our favorite recipes.';
 
 -- see active connections
 SELECT * FROM pg_stat_activity where datname = 'recipe';
@@ -19,11 +20,16 @@ DROP TABLE IF EXISTS Measure CASCADE;
 DROP TABLE IF EXISTS Food_Ingredient CASCADE;
 DROP TABLE IF EXISTS FoodType CASCADE;
 DROP TABLE IF EXISTS IngredientType CASCADE;
+-- drop triggers and functions
+DROP TRIGGER IF EXISTS food_added_trigger ON food;
+DROP FUNCTION IF EXISTS food_added;
 
 CREATE TABLE FoodType
 (		
   ID serial PRIMARY KEY
   , FoodType varchar UNIQUE NOT NULL 
+  , Created_Date timestamptz DEFAULT now() NOT NULL
+  , Mod_Date timestamptz DEFAULT now() NOT NULL
 );
 COMMENT ON TABLE FoodType IS 'How or when we typically eat a food.';
 INSERT INTO FoodType (FoodType) VALUES
@@ -40,6 +46,8 @@ CREATE TABLE IngredientType
   , IngredientType varchar UNIQUE NOT NULL
   , icon varchar DEFAULT 'question'
   , color varchar
+  , Created_Date timestamptz DEFAULT now() NOT NULL
+  , Mod_Date timestamptz DEFAULT now() NOT NULL
 );
 COMMENT ON TABLE IngredientType IS 'Categorizes ingredients into basic food groups.';
 INSERT INTO IngredientType (IngredientType,icon,color) VALUES
@@ -58,6 +66,8 @@ CREATE TABLE Measure
 (		
   ID serial PRIMARY KEY
   , Measurement varchar UNIQUE NOT NULL
+  , Created_Date timestamptz DEFAULT now() NOT NULL
+  , Mod_Date timestamptz DEFAULT now() NOT NULL
 );
 COMMENT ON TABLE Measure IS 'How we measure quantities of a food.';
 INSERT INTO Measure (Measurement) VALUES
@@ -79,6 +89,7 @@ CREATE TABLE Food
   , Serving integer NOT NULL
   , Meal_Prep boolean DEFAULT 'f' NOT NULL -- might make this a foreign key to a new table: MealPrep
   , Created_Date timestamptz DEFAULT now() NOT NULL
+  , Mod_Date timestamptz DEFAULT now() NOT NULL
 );
 COMMENT ON TABLE Food IS 'Usually an individual component to a meal, but can sometimes be an entire meal.';
 INSERT INTO Food (FoodType_ID,Food,Description,Serving,Meal_Prep) VALUES
@@ -106,6 +117,8 @@ CREATE TABLE Ingredient
   , Protein numeric(12,2)
   ,	Carb numeric(12,2)
   ,	Fat numeric(12,2)
+  , Created_Date timestamptz DEFAULT now() NOT NULL
+  , Mod_Date timestamptz DEFAULT now() NOT NULL
 );
 COMMENT ON TABLE Ingredient IS 'The components required to cook food.';
 INSERT INTO Ingredient (Ingredient,Measure_ID,Substitute_ID,IngredientType_ID) VALUES
@@ -139,6 +152,8 @@ CREATE TABLE Step
   , ActionTime numeric(12,2)
   , Instruction_Order integer NOT NULL
   , Instruction varchar
+  , Created_Date timestamptz DEFAULT now() NOT NULL
+  , Mod_Date timestamptz DEFAULT now() NOT NULL
 );
 COMMENT ON TABLE Step IS 'The steps required to cook related food.';
 INSERT INTO Step (Food_ID,ActionTime,Instruction_Order,Instruction) VALUES
@@ -175,6 +190,8 @@ CREATE TABLE Food_Ingredient
   , Ingredient_ID integer NOT NULL REFERENCES Ingredient(ID) ON DELETE CASCADE 
   , QTY numeric(12,2) NOT NULL DEFAULT 1
   , Optional boolean DEFAULT 'f' NOT NULL
+  , Created_Date timestamptz DEFAULT now() NOT NULL
+  , Mod_Date timestamptz DEFAULT now() NOT NULL
 );
 COMMENT ON TABLE Food_Ingredient IS 'Relating food with the ingredients needed to cook it.';
 INSERT INTO Food_Ingredient (Food_ID,Ingredient_ID,QTY,Optional) VALUES
@@ -240,6 +257,9 @@ CREATE VIEW v_food_ing AS
 		
 -- Triggers -------------------------------------------------------------------------------
 -- add a dummy tuple for food_ingredient and step when a Food is added.
+-- this is becasue at the application level, adding/editing ingredients requires a record.
+-- the application layer will prevent null steps and food_ingredients for a given food.
+	-- however, this could also be a check constraint in the DB.
 DROP TRIGGER IF EXISTS food_added_trigger ON food;
 DROP FUNCTION IF EXISTS food_added;
 CREATE FUNCTION food_added() RETURNS trigger AS $$
@@ -255,3 +275,8 @@ $$ LANGUAGE 'plpgsql' SECURITY DEFINER;
 
 CREATE TRIGGER food_added_trigger AFTER INSERT ON food
         FOR EACH ROW EXECUTE PROCEDURE food_added();
+		
+/* test food_added_trigger
+INSERT INTO food(foodtype_id,food,description,serving,meal_prep)
+            VALUES(1,'test','test trigger',1,'f');
+*/
