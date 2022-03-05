@@ -7,10 +7,16 @@
     # fix errors when buttons are selected, it's like a shadow row is selected
     # auto-select DT
     # continue to optimize query and reactivevalue timing
-    # admin controls for validation tables
+    # get admin controls to refresh tables!!!! eg reactivePoll
+    # edit controls for validation tables
+    # init TEST database
+
+# V2
+    # suggested calendar
+    # reactivePoll for everything to implement concurrent use
 
 # Optional
-    # show ingredient type icon when editing / adding ingredients.
+    # show ingredient type icon when editing / adding ingredients and food_ingredients
     # reworkd v.food.df.r to use dbgetquery
 
 shinyServer(function(input, output, session) {
@@ -27,25 +33,17 @@ shinyServer(function(input, output, session) {
         admin = 0 # for CUD when signed in.
         # , food.df = tbl(con,'food') %>% collect()
         , reval_step.df = TRUE
-        # , step.df = tbl(con,'step') %>% collect()
         , reval_ingredient.df = TRUE
-        # , ingredient.df = tbl(con,'ingredient') %>% collect()
-        # , food_ing.df = tbl(con,'food_ingredient') %>% collect()
-        # , foodtype.df = tbl(con,'foodtype') %>% collect()
         , reval_foodtype.df = TRUE
-        # , ingredienttype.df = tbl(con,'ingredienttype') %>% collect()
         , reval_ing_type.df = TRUE
         , reval_measure.df = TRUE
-        # , measure.df = tbl(con,'measure') %>% collect()
-        # , v.food.df = tbl(con,'v_food') %>% collect()
         , reval_v.food.df = TRUE
-        # , v.food_ing.df = tbl(con,'v_food_ing') %>% collect()
         , reval_v.food_ing.df = TRUE
     )
     
     foodtype.df <- reactive({
         rv$reval_foodtype.df
-        ft.df = tbl(con,'foodtype') %>% collect()
+        ft.df = tbl(con,'foodtype') %>% select(-created_date,-mod_date) %>% collect()
         ft.df
     })
     # values for selectInputs
@@ -60,15 +58,32 @@ shinyServer(function(input, output, session) {
     
     measure.df <- reactive({
         rv$reval_measure.df
-        m.df = tbl(con,'measure') %>% collect()
+        m.df = tbl(con,'measure') %>% select(-created_date,-mod_date) %>% collect()
         m.df
     })
     
     ingredient.df <- reactive({
         rv$reval_ingredient.df
-        i.df <- tbl(con,'ingredient') %>% collect()
+        i.df <- tbl(con,'ingredient') %>% select(-created_date,-mod_date) %>% collect()
         i.df
     })
+    ingredient.df.rp <- reactivePoll(2500, session,
+                         # This function returns the time
+                         checkFunc = function() {
+                             # if (input$tabs == 'admin'){
+                                 q <- dbGetQuery(con, "SELECT COUNT(*) count, MAX(mod_date) max_mod  FROM ingredient;")
+                                 return(paste0(q$count,q$max_mod))
+                             # } else {
+                             #     "" }
+                         },
+                         # This function returns data
+                         valueFunc = function() {
+                             # tbl(con,'ingredient') %>% collect()
+                             q <- dbGetQuery(con, "SELECT * FROM ingredient;")
+                             return(q)
+                         }
+    )
+    
     ingredient <- reactive({
         ing <- ingredient.df()$id
         names(ing) <- ingredient.df()$ingredient
@@ -77,7 +92,7 @@ shinyServer(function(input, output, session) {
     
     ing_type.df <- reactive({
         rv$reval_ing_type.df
-        it.df <- tbl(con,'ingredienttype') %>% collect()
+        it.df <- tbl(con,'ingredienttype') %>% select(-created_date,-mod_date) %>% collect()
         it.df
     })
     
@@ -92,6 +107,7 @@ shinyServer(function(input, output, session) {
         # v.food.df.r = rv$v.food.df %>%
         #     filter(total_time <= input$total_time)
         v.food.df.r = tbl(con,'v_food') %>%
+            select(-created_date,-mod_date) %>%
             filter(total_time <= local(input$total_time)) %>%
             collect()
         
@@ -126,6 +142,7 @@ shinyServer(function(input, output, session) {
             "SELECT * FROM v_food_ing
              WHERE food_id = ?f_id;"
             , f_id = s_food$id)) %>%
+            select(-created_date,-mod_date) %>%
             mutate(ingredienttype = paste0("<i class='fa fa-",icon
                                            ,"' style='color:",color,";'></i>")
                    , amount = qty*(input$servings/s_food$serving)
@@ -144,17 +161,29 @@ shinyServer(function(input, output, session) {
              "SELECT * FROM step
              WHERE food_id = ?f_id
              ORDER BY instruction_order;"
-             , f_id = s_food$id))
+             , f_id = s_food$id)) %>%
+            select(-created_date,-mod_date)
         
         step.df             
     })
     
 # Browse -------------------------------------------------------------------------------
+    # _Filters ----------------------------
+    output$servingUI <- renderUI({
+        numericInput('servings','Servings',v.food.df.r()$serving[input$recipes_rows_selected]
+                     ,1,20)
+    }) # servingUI
+    output$foodtypeUI <- renderUI({
+        selectInput("foodtype", label="Food Type",
+                    choices = c('All',foodtype()),
+                    selected = 'All')
+    })
+    
     # _Food ##########################
     output$recipes <- renderDT({
         
         tdata <- v.food.df.r() %>%
-            select(-foodtype_id,-serving,-steps,-foodtype,-created_date) %>%
+            select(-foodtype_id,-serving,-steps,-foodtype) %>%
             mutate(meal_prep = ifelse(meal_prep == 1,i_checkmark, NA)) %>%
             select(-description)
             # relocate(description, .after = last_col())
@@ -198,12 +227,6 @@ shinyServer(function(input, output, session) {
             formatStyle(names(tdata), verticalAlign='middle')
      
     }) # recipes
-    
-    
-    output$servingUI <- renderUI({
-        numericInput('servings','Servings',v.food.df.r()$serving[input$recipes_rows_selected]
-                     ,1,20)
-    }) # servingUI
     
     # _Steps #############################
     
@@ -713,9 +736,26 @@ observeEvent(input$add_food_ing, {
 
 # Admin --------------------------------------------------
 # _renderDT -------------
+renderAdminDT <- function(tdata,btn_suffix){
+    renderDT({
+        tdata$Delete <- init_buttons(nrow(tdata),paste0("delete_",btn_suffix), icon = icon("trash"), class = "btn-danger")
+        tdata$Edit <- init_buttons(nrow(tdata),paste0("edit_",btn_suffix), icon = icon("pencil-alt"), class = "btn-warning")
+        dis_but_order <- list(targets = (ncol(tdata)-1):ncol(tdata)-1, orderable = FALSE) # disable ordering on buttons
+        
+        datatable(tdata, rownames = FALSE, selection = 'none'
+                  , options = list(pageLength = 30
+                                   , columnDefs = list(dis_but_order)
+                                   , dom = 'tp'
+                  )
+        ) %>%
+            formatStyle(names(tdata), verticalAlign='middle')
+    })
+    
+}
+
 output$foodtype <- renderAdminDT(foodtype.df(),'foodtype')
 output$ing_type <- renderAdminDT(ing_type.df(),'ing_type')
-output$ingredient <- renderAdminDT(ingredient.df(),'ingredient')
+output$ingredient <- renderAdminDT(ingredient.df.rp(),'ingredient')
 output$measure <- renderAdminDT(measure.df(),'measure')
 
 # _Delete Buttons ------------------------
@@ -730,22 +770,26 @@ observeDelete <- function(tdata,btn_suffix,name){
             title = tags$b("Are you sure you want to delete the following item?",style="color:red;")
             , class = "delete"
             , "Internal ID: ", tdata[rowNum,]$id, br()
-            , paste0(name,": ",tdata[rowNum,][2])
+            , h4(name,": ",tdata[rowNum,][2]), br()
+            , p("reval_: ",rv[[glue('reval_{btn_suffix}.df')]]), br()
+            , p("input$tabs: ",input$tabs)
             , fluidRow(column(6,actionButton(paste0("confirm_delete_",btn_suffix)
                                              ,paste("Delete",name),icon("trash"), class = "btn-danger"))
                        , column(6,modalButton("Cancel",icon("times"))))
             , footer = NULL, easyClose = TRUE
         ))
-    }) } # function
+    }) } # observeDelete
 
 observeDelete(foodtype.df(),'foodtype','Food Type')
 observeDelete(ing_type.df(),'ing_type','Ing. Type')
-observeDelete(ingredient.df(),'ingredient','Ingredient')
+observeDelete(ingredient.df.rp(),'ingredient','Ingredient')
 observeDelete(measure.df(),'measure','Measure')
 
-observeConfDelete <- function(btn_suffix){observeEvent(input[[paste0('confirm_delete_',btn_suffix)]], {
+observeConfDelete <- function(btn_suffix,table_name = NA){observeEvent(input[[paste0('confirm_delete_',btn_suffix)]], {
+    if(is.na(table_name)) table_name <- btn_suffix
+    
     dbExecute(rv$con_admin, sqlInterpolate(rv$con_admin,
-           glue("DELETE FROM {btn_suffix} WHERE id = ?id;")
+           glue("DELETE FROM {table_name} WHERE id = ?id;")
            , id = rv[[paste0(btn_suffix,'_to_delete')]]$id
     )) # dbExecute
     
@@ -753,10 +797,10 @@ observeConfDelete <- function(btn_suffix){observeEvent(input[[paste0('confirm_de
     
     # update datatable
     rv[[glue('reval_{btn_suffix}.df')]] <- !rv[[glue('reval_{btn_suffix}.df')]]
-}) } # function
+}) } # observeConfDelete
 
 observeConfDelete('foodtype')
-observeConfDelete('ing_type')
+observeConfDelete('ing_type','ingredienttype')
 observeConfDelete('ingredient')
 observeConfDelete('measure')
 
