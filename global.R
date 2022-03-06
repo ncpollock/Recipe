@@ -1,6 +1,6 @@
 # GLOBAL START ------------------------------------
 # add debug-friendly UI elements e.g., surrogate primary keys
-debug_mode <- TRUE
+debug_mode <- FALSE
 
 library(shiny)
 # library(shinydashboard) # just for some aesthetics eg box()

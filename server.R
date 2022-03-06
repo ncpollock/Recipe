@@ -797,6 +797,42 @@ observeConfDelete('ingredient')
 observeConfDelete('measure')
 
 # _Edit Buttons ------------------------
+# function to reuse for all admin page.
+observeEdit <- function(tdata,btn_suffix,name){
+    observeEvent(input[[paste0('edit_',btn_suffix)]], {
+        rowNum <- get_id_from_input(input[[paste0('edit_',btn_suffix)]])
+        rv[[paste0(btn_suffix,'_to_edit')]] <- tdata[rowNum,]
+        
+        input_list <- lapply(names(tdata[,-1]), function(i) {
+            if(is.numeric(tdata[[i]])){
+                numericInput(glue('{btn_suffix}_edit'),i,tdata[rowNum,i],step = 1)
+            } else {  # not numeric
+                textInput(glue('{btn_suffix}_edit'),i
+                          , value = tdata[rowNum,i], width = "100%")
+                }
+            })
+        
+        showModal(modalDialog(
+            title = glue("Edit the selected {name}, or add as a new {name}.")
+            , class = "edit"
+            , h4(paste0(name,":"),tdata[rowNum,2]), br()
+            , if(debug_mode){div(
+                "Internal ID: ", tdata[rowNum,]$id, br()
+                , p("reval_: ",rv[[glue('reval_{btn_suffix}.df')]]), br()
+                , p("input$tabs: ",input$tabs),br()
+                , p("Rows: ",nrow(tdata)),br()
+                , p("Max Mod:", max(tdata$mod_date)))} else {""}
+            , tagList(input_list)
+            , fluidRow(column(4,actionButton(paste0("confirm_edit_",btn_suffix),"Save Edits",icon("pencil-alt"), class = "btn-warning"))
+                       , column(4,actionButton(glue("add_{btn_suffix}"), glue("Add {name}"), icon = icon("plus"), class = "btn-success"))
+                       , column(4,modalButton("Cancel",icon("times"))))
+            , footer = NULL, easyClose = TRUE
+        ))
+    }) } # observeDelete
+observeEdit(foodtype.df(),'foodtype','Food Type')
+observeEdit(ing_type.df(),'ing_type','Ing. Type')
+observeEdit(ingredient.df(),'ingredient','Ingredient')
+observeEdit(measure.df(),'measure','Measure')
 
 # Sandbox -------------------
 
