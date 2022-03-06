@@ -15,6 +15,10 @@
     # suggested calendar
     # reactivePoll for everything to implement concurrent use
 
+# V3
+    # consider making edits directly to datatable instead of modals.
+    # handle database errors
+
 # Optional
     # show ingredient type icon when editing / adding ingredients and food_ingredients
     # reworkd v.food.df.r to use dbgetquery
@@ -67,23 +71,6 @@ shinyServer(function(input, output, session) {
         i.df <- tbl(con,'ingredient') %>% select(-created_date,-mod_date) %>% collect()
         i.df
     })
-    ingredient.df.rp <- reactivePoll(2500, session,
-                         # This function returns the time
-                         checkFunc = function() {
-                             # if (input$tabs == 'admin'){
-                                 q <- dbGetQuery(con, "SELECT COUNT(*) count, MAX(mod_date) max_mod  FROM ingredient;")
-                                 return(paste0(q$count,q$max_mod))
-                             # } else {
-                             #     "" }
-                         },
-                         # This function returns data
-                         valueFunc = function() {
-                             # tbl(con,'ingredient') %>% collect()
-                             q <- dbGetQuery(con, "SELECT * FROM ingredient;")
-                             return(q)
-                         }
-    )
-    
     ingredient <- reactive({
         ing <- ingredient.df()$id
         names(ing) <- ingredient.df()$ingredient
@@ -738,6 +725,7 @@ observeEvent(input$add_food_ing, {
 # _renderDT -------------
 renderAdminDT <- function(tdata,btn_suffix){
     renderDT({
+        tdata <- tdata() # so tdata is recognized as reactive
         tdata$Delete <- init_buttons(nrow(tdata),paste0("delete_",btn_suffix), icon = icon("trash"), class = "btn-danger")
         tdata$Edit <- init_buttons(nrow(tdata),paste0("edit_",btn_suffix), icon = icon("pencil-alt"), class = "btn-warning")
         dis_but_order <- list(targets = (ncol(tdata)-1):ncol(tdata)-1, orderable = FALSE) # disable ordering on buttons
@@ -754,9 +742,9 @@ renderAdminDT <- function(tdata,btn_suffix){
 }
 
 output$foodtype <- renderAdminDT(foodtype.df(),'foodtype')
-output$ing_type <- renderAdminDT(ing_type.df(),'ing_type')
-output$ingredient <- renderAdminDT(ingredient.df.rp(),'ingredient')
-output$measure <- renderAdminDT(measure.df(),'measure')
+output$ing_type <- renderAdminDT(reactive(ing_type.df()),'ing_type')
+output$ingredient <- renderAdminDT(reactive(ingredient.df()),'ingredient')
+output$measure <- renderAdminDT(reactive(measure.df()),'measure')
 
 # _Delete Buttons ------------------------
 
@@ -769,10 +757,13 @@ observeDelete <- function(tdata,btn_suffix,name){
         showModal(modalDialog(
             title = tags$b("Are you sure you want to delete the following item?",style="color:red;")
             , class = "delete"
-            , "Internal ID: ", tdata[rowNum,]$id, br()
-            , h4(name,": ",tdata[rowNum,][2]), br()
-            , p("reval_: ",rv[[glue('reval_{btn_suffix}.df')]]), br()
-            , p("input$tabs: ",input$tabs)
+            , h4(paste0(name,":"),tdata[rowNum,][2]), br()
+            , if(debug_mode){div(
+                "Internal ID: ", tdata[rowNum,]$id, br()
+                , p("reval_: ",rv[[glue('reval_{btn_suffix}.df')]]), br()
+                , p("input$tabs: ",input$tabs),br()
+                , p("Rows: ",nrow(tdata)),br()
+                , p("Max Mod:", max(tdata$mod_date)))} else {""}
             , fluidRow(column(6,actionButton(paste0("confirm_delete_",btn_suffix)
                                              ,paste("Delete",name),icon("trash"), class = "btn-danger"))
                        , column(6,modalButton("Cancel",icon("times"))))
@@ -782,10 +773,11 @@ observeDelete <- function(tdata,btn_suffix,name){
 
 observeDelete(foodtype.df(),'foodtype','Food Type')
 observeDelete(ing_type.df(),'ing_type','Ing. Type')
-observeDelete(ingredient.df.rp(),'ingredient','Ingredient')
+observeDelete(ingredient.df(),'ingredient','Ingredient')
 observeDelete(measure.df(),'measure','Measure')
 
-observeConfDelete <- function(btn_suffix,table_name = NA){observeEvent(input[[paste0('confirm_delete_',btn_suffix)]], {
+observeConfDelete <- function(btn_suffix,table_name = NA){
+    observeEvent(input[[paste0('confirm_delete_',btn_suffix)]], {
     if(is.na(table_name)) table_name <- btn_suffix
     
     dbExecute(rv$con_admin, sqlInterpolate(rv$con_admin,
@@ -795,7 +787,7 @@ observeConfDelete <- function(btn_suffix,table_name = NA){observeEvent(input[[pa
     
     removeModal()
     
-    # update datatable
+    # update datatable: this is working, but it's not triggering a refresh...
     rv[[glue('reval_{btn_suffix}.df')]] <- !rv[[glue('reval_{btn_suffix}.df')]]
 }) } # observeConfDelete
 
@@ -806,6 +798,24 @@ observeConfDelete('measure')
 
 # _Edit Buttons ------------------------
 
+# Sandbox -------------------
+
+# _reactivePoll ----------
+# ingredient.df.rp <- reactivePoll(2500, session,
+#                                  # This function returns the time
+#                                  checkFunc = function() {
+#                                      if (input$tabs == 'admin'){
+#                                          q <- dbGetQuery(con, "SELECT COUNT(*) count, MAX(mod_date) max_mod  FROM ingredient;")
+#                                          return(paste0(q$count,q$max_mod))
+#                                      } else {""}
+#                                  },
+#                                  # This function returns data
+#                                  valueFunc = function() {
+#                                      # tbl(con,'ingredient') %>% collect()
+#                                      q <- dbGetQuery(con, "SELECT * FROM ingredient;")
+#                                      return(q)
+#                                  }
+# )
 
 }) # shinyServer 
 # END ------------------------
