@@ -1,19 +1,16 @@
 # SERVER START -------------------------------------
 
 #TO-DO
-    # add food description as a tooltip over Food selection table
-    # refine CSS
-    # prevent sign-in from being clicked multiple times.
     # fix errors when buttons are selected, it's like a shadow row is selected
-    # auto-select DT
-    # continue to optimize query and reactivevalue timing
-    # get admin controls to refresh tables!!!! eg reactivePoll
-    # edit controls for validation tables
+    # auto-select DT?
     # init TEST database
+    # suggested calendar
 
 # V2
-    # suggested calendar
     # reactivePoll for everything to implement concurrent use
+    # continue to optimize query and reactivevalue timing
+    # refine CSS
+    # add food description as a tooltip over Food selection table
 
 # V3
     # consider making edits directly to datatable instead of modals.
@@ -68,7 +65,9 @@ shinyServer(function(input, output, session) {
     
     ingredient.df <- reactive({
         rv$reval_ingredient.df
-        i.df <- tbl(con,'ingredient') %>% select(-created_date,-mod_date) %>% collect()
+        i.df <- tbl(con,'ingredient') %>% 
+            select(-created_date,-mod_date) %>% 
+            select(-calorie,-protein,-carb,-fat) %>% collect()
         i.df
     })
     ingredient <- reactive({
@@ -227,7 +226,7 @@ shinyServer(function(input, output, session) {
             select(-food_id,-actiontime) %>%
             relocate(instruction_order, .after = id)
         
-        tdata_cols <- c('Order',
+        tdata_cols <- c('Step',
                         'Instruction')
         
         dis_but_order <- list() # disable ordering on buttons fields if they exist
@@ -653,6 +652,7 @@ observeEvent(input$confirm_edit_step, { # if confirmed then update in DB
         SET actiontime = ?at
                 , instruction_order = ?inst_ord
                 , instruction = ?inst
+                , mod_date = now()
         WHERE id = ?s_id;"
         , s_id = rv$step_to_edit$id
         , at = input$actiontime_edit
@@ -725,23 +725,35 @@ observeEvent(input$add_food_ing, {
 # _renderDT -------------
 renderAdminDT <- function(tdata,btn_suffix){
     renderDT({
-        tdata <- tdata() # so tdata is recognized as reactive
+
+        tdata <- tdata()
         tdata$Delete <- init_buttons(nrow(tdata),paste0("delete_",btn_suffix), icon = icon("trash"), class = "btn-danger")
         tdata$Edit <- init_buttons(nrow(tdata),paste0("edit_",btn_suffix), icon = icon("pencil-alt"), class = "btn-warning")
         dis_but_order <- list(targets = (ncol(tdata)-1):ncol(tdata)-1, orderable = FALSE) # disable ordering on buttons
         
+        # show icons for ingredienttype
+        # maay work to do this in the modal window instead...
+        # escape_col <- -which(colnames(tdata) == "icon")
+        # if(escape_col < 0) {
+        icon_handle <- ifelse("icon" %in% names(tdata)
+                              ,-which(colnames(tdata) == "icon")
+                              ,FALSE)
+        # if("icon" %in% names(tdata)) {
+        if(icon_handle) { # everything but false will be evaluated
+            tdata <- tdata %>% mutate(icon = glue("<i class='fa fa-{icon}"
+                   ,"' style='color: {color};'></i>"))
+        }
+        
         datatable(tdata, rownames = FALSE, selection = 'none'
+                  , escape = icon_handle
                   , options = list(pageLength = 30
                                    , columnDefs = list(dis_but_order)
                                    , dom = 'tp'
                   )
         ) %>%
             formatStyle(names(tdata), verticalAlign='middle')
-    })
-    
-}
-
-output$foodtype <- renderAdminDT(foodtype.df(),'foodtype')
+    }) } # renderAdminDT
+output$foodtype <- renderAdminDT(reactive(foodtype.df()),'foodtype')
 output$ing_type <- renderAdminDT(reactive(ing_type.df()),'ing_type')
 output$ingredient <- renderAdminDT(reactive(ingredient.df()),'ingredient')
 output$measure <- renderAdminDT(reactive(measure.df()),'measure')
@@ -751,11 +763,12 @@ output$measure <- renderAdminDT(reactive(measure.df()),'measure')
 # function to reuse for all admin page.
 observeDelete <- function(tdata,btn_suffix,name){
     observeEvent(input[[paste0('delete_',btn_suffix)]], {
+        tdata <- tdata() # NEEDED to identify as reactive within a function!
         rowNum <- get_id_from_input(input[[paste0('delete_',btn_suffix)]])
         rv[[paste0(btn_suffix,'_to_delete')]] <- tdata[rowNum,]
         
         showModal(modalDialog(
-            title = tags$b("Are you sure you want to delete the following item?",style="color:red;")
+            title = glue("Are you sure you want to delete {tdata[rowNum,][2]}")
             , class = "delete"
             , h4(paste0(name,":"),tdata[rowNum,][2]), br()
             , if(debug_mode){div(
@@ -771,10 +784,10 @@ observeDelete <- function(tdata,btn_suffix,name){
         ))
     }) } # observeDelete
 
-observeDelete(foodtype.df(),'foodtype','Food Type')
-observeDelete(ing_type.df(),'ing_type','Ing. Type')
-observeDelete(ingredient.df(),'ingredient','Ingredient')
-observeDelete(measure.df(),'measure','Measure')
+observeDelete(reactive(foodtype.df()),'foodtype','Food Type')
+observeDelete(reactive(ing_type.df()),'ing_type','Ing. Type')
+observeDelete(reactive(ingredient.df()),'ingredient','Ingredient')
+observeDelete(reactive(measure.df()),'measure','Measure')
 
 observeConfDelete <- function(btn_suffix,table_name = NA){
     observeEvent(input[[paste0('confirm_delete_',btn_suffix)]], {
@@ -787,7 +800,7 @@ observeConfDelete <- function(btn_suffix,table_name = NA){
     
     removeModal()
     
-    # update datatable: this is working, but it's not triggering a refresh...
+    # update datatable
     rv[[glue('reval_{btn_suffix}.df')]] <- !rv[[glue('reval_{btn_suffix}.df')]]
 }) } # observeConfDelete
 
@@ -800,20 +813,22 @@ observeConfDelete('measure')
 # function to reuse for all admin page.
 observeEdit <- function(tdata,btn_suffix,name){
     observeEvent(input[[paste0('edit_',btn_suffix)]], {
+        tdata <- tdata()
         rowNum <- get_id_from_input(input[[paste0('edit_',btn_suffix)]])
         rv[[paste0(btn_suffix,'_to_edit')]] <- tdata[rowNum,]
         
         input_list <- lapply(names(tdata[,-1]), function(i) {
             if(is.numeric(tdata[[i]])){
-                numericInput(glue('{btn_suffix}_edit'),i,tdata[rowNum,i],step = 1)
+                numericInput(glue('{i}_edit'),i,value = as.integer(tdata[rowNum,i])
+                             , min = 1, step = 1)
             } else {  # not numeric
-                textInput(glue('{btn_suffix}_edit'),i
+                textInput(glue('{i}_edit'),i
                           , value = tdata[rowNum,i], width = "100%")
                 }
             })
         
         showModal(modalDialog(
-            title = glue("Edit the selected {name}, or add as a new {name}.")
+            title = glue("Edit {tdata[rowNum,2]}, or create a new {name}.")
             , class = "edit"
             , h4(paste0(name,":"),tdata[rowNum,2]), br()
             , if(debug_mode){div(
@@ -821,7 +836,8 @@ observeEdit <- function(tdata,btn_suffix,name){
                 , p("reval_: ",rv[[glue('reval_{btn_suffix}.df')]]), br()
                 , p("input$tabs: ",input$tabs),br()
                 , p("Rows: ",nrow(tdata)),br()
-                , p("Max Mod:", max(tdata$mod_date)))} else {""}
+                , p("Max Mod:", max(tdata$mod_date)),br()
+                , tdata[rowNum,])} else {""}
             , tagList(input_list)
             , fluidRow(column(4,actionButton(paste0("confirm_edit_",btn_suffix),"Save Edits",icon("pencil-alt"), class = "btn-warning"))
                        , column(4,actionButton(glue("add_{btn_suffix}"), glue("Add {name}"), icon = icon("plus"), class = "btn-success"))
@@ -829,26 +845,105 @@ observeEdit <- function(tdata,btn_suffix,name){
             , footer = NULL, easyClose = TRUE
         ))
     }) } # observeDelete
-observeEdit(foodtype.df(),'foodtype','Food Type')
-observeEdit(ing_type.df(),'ing_type','Ing. Type')
-observeEdit(ingredient.df(),'ingredient','Ingredient')
-observeEdit(measure.df(),'measure','Measure')
+observeEdit(reactive(foodtype.df()),'foodtype','Food Type')
+observeEdit(reactive(ing_type.df()),'ing_type','Ing. Type')
+observeEdit(reactive(ingredient.df()),'ingredient','Ingredient')
+observeEdit(reactive(measure.df()),'measure','Measure')
+
+# these could be wrapped in a function, but each query must be unique
+    # since table structures differ. These are short enough that it
+    # is worth the transparency to write each one out entirely.
+observeEvent(input$confirm_edit_foodtype, {
+    
+    dbExecute(rv$con_admin, sqlInterpolate(
+        rv$con_admin,
+        "UPDATE foodtype
+        SET foodtype = ?ft
+                , mod_date = now()
+        WHERE id = ?id;"
+        , id = rv$foodtype_to_edit$id
+        , ft = input$foodtype_edit)) # dbExecute
+    
+    removeModal()
+    
+    rv$reval_foodtype.df <- !rv$reval_foodtype.df # update datatable
+}) # observeEvent confirm_edit_foodtype
+
+observeEvent(input$confirm_edit_ing_type, {
+    
+    dbExecute(rv$con_admin, sqlInterpolate(
+        rv$con_admin,
+        "UPDATE ingredienttype
+        SET ingredienttype = ?it
+                , icon = ?icon
+                , color = ?color
+                , mod_date = now()
+        WHERE id = ?id;"
+        , id = rv$ing_type_to_edit$id
+        , it = input$ingredienttype_edit
+        , icon = input$icon_edit
+        , color = input$color_edit)) # dbExecute
+    
+    removeModal()
+    
+    rv$reval_ing_type.df <- !rv$reval_ing_type.df # update datatable
+}) # observeEvent confirm_edit_ing_type
+
+observeEvent(input$confirm_edit_ingredient, {
+    
+    dbExecute(rv$con_admin, sqlInterpolate(
+        rv$con_admin,
+        "UPDATE ingredient
+        SET ingredient = ?i
+                , measure_id = ?m_id
+                , substitute_id = ?s_id
+                , ingredienttype_id = ?it_id
+                , mod_date = now()
+        WHERE id = ?id;"
+        , id = rv$ingredient_to_edit$id
+        , i = input$ingredient_edit
+        , m_id = input$measure_id_edit
+        , s_id = input$substitute_id_edit
+        , it_id = input$ingredienttype_id_edit)) # dbExecute
+    # eventually add calorie, protein, carb, and fat
+    
+    removeModal()
+    
+    rv$reval_ingredient.df <- !rv$reval_ingredient.df # update datatable
+}) # observeEvent confirm_edit_ingredient
+
+observeEvent(input$confirm_edit_measure, {
+    
+    dbExecute(rv$con_admin, sqlInterpolate(
+        rv$con_admin,
+        "UPDATE measure
+        SET measurement = ?m
+                , mod_date = now()
+        WHERE id = ?id;"
+        , id = rv$measure_to_edit$id
+        , m = input$measurement_edit)) # dbExecute
+    
+    removeModal()
+    
+    rv$reval_measure.df <- !rv$reval_measure.df # update datatable
+}) # observeEvent confirm_edit_measure
 
 # Sandbox -------------------
 
 # _reactivePoll ----------
-# ingredient.df.rp <- reactivePoll(2500, session,
+# ing_type.df <- reactivePoll(2500, session,
 #                                  # This function returns the time
 #                                  checkFunc = function() {
 #                                      if (input$tabs == 'admin'){
-#                                          q <- dbGetQuery(con, "SELECT COUNT(*) count, MAX(mod_date) max_mod  FROM ingredient;")
+#                                          q <- dbGetQuery(con, "SELECT COUNT(*) count, MAX(mod_date) max_mod  FROM ingredienttype;")
 #                                          return(paste0(q$count,q$max_mod))
 #                                      } else {""}
 #                                  },
 #                                  # This function returns data
 #                                  valueFunc = function() {
 #                                      # tbl(con,'ingredient') %>% collect()
-#                                      q <- dbGetQuery(con, "SELECT * FROM ingredient;")
+#                                      q <- dbGetQuery(con, "SELECT * FROM ingredienttype;") %>% 
+#                                          select(-created_date,-mod_date)
 #                                      return(q)
 #                                  }
 # )
