@@ -78,32 +78,7 @@ shinyUI(
                #   , h1("Market Basket Analysis for Ingredients")
                #   # , DT::dataTableOutput("analytics_dt")
                # ) # analytics
-               , tabPanel(
-                 'About/Help', icon = icon("question-circle")
-                 , sidebarLayout(
-                   sidebarPanel(
-                     box(width = 12,collapsible = FALSE, collapsed = FALSE,
-                           title = "Site Administrator",
-                           p(strong("Name: "),"Noah Pollock")
-                           # ,p(strong("Email: "),"REDACTED")
-                         )
-                     , box(width = 12,collapsible = FALSE, collapsed = FALSE,
-                           title = "Data Policy",
-                           p("The data entered on this site is retained in a cloud-hosted database and is 
-            used exclusively for providing access to and maintaining the full functionality of this site. 
-            Anyone is free to benefit from the published recipes on this site; however, only authorized users
-                             are permitted to add, edit, or delete recipe information."))
-                   )
-                   , mainPanel(h1("What is this?")
-                               , p("This web application helps people choose and create simple meals.")
-                                , h1("Resources")
-                                , tags$ul(
-                                  tags$li(a("NIH Food Groups",href = "https://www.nia.nih.gov/health/know-your-food-groups",target="_blank"))
-                                  , tags$li(a("Where to Find Other Recipes",href = "https://www.google.com",target="_blank"))
-                                  )
-                 ) # mainPanel
-                     ) # sideBarLayout
-                   ) # tabPanel
+             
                # Admin Tab --------------------
                , tabPanel('Admin',icon = icon("tools"),value = "admin"
                           #tabbox with 'Food','Ingredients','Steps'
@@ -121,7 +96,33 @@ shinyUI(
                             , tabPanel("Measure", DTOutput('measure'))
                           )
                          ) # tabPanel admin
-               , tabPanel('Source Code',icon = icon("sign-out-alt"),tags$style("float: right;"),p("To be added..."))
+               , tabPanel(
+                 'About/Help', icon = icon("question-circle")
+                 , sidebarLayout(
+                   sidebarPanel(
+                     div(width = 12,collapsible = FALSE, collapsed = FALSE,
+                         h2("Site Administrator"),
+                         p(strong("Name: "),"Noah Pollock")
+                         # ,p(strong("Email: "),"REDACTED")
+                     )
+                     , div(width = 12,collapsible = FALSE, collapsed = FALSE,
+                           h2("Data Policy"),
+                           p("The data entered on this site is retained in a cloud-hosted database and is 
+            used exclusively for providing access to and maintaining the full functionality of this site. 
+            Anyone is free to benefit from the published recipes on this site; however, only authorized users
+                             are permitted to add, edit, or delete recipe information."))
+                   )
+                   , mainPanel(h1("What is this?")
+                               , p("This web application helps people choose and create simple meals.")
+                               , h1("Resources")
+                               , tags$ul(
+                                 tags$li(a("NIH Food Groups",href = "https://www.nia.nih.gov/health/know-your-food-groups",target="_blank"))
+                                 , tags$li(a("Where to Find Other Recipes",href = "https://www.google.com",target="_blank"))
+                               )
+                   ) # mainPanel
+                 ) # sideBarLayout
+               ) # tabPanel about/help
+               # , tabPanel('Source Code',icon = icon("sign-out-alt"),tags$style("float: right;"),p("To be added..."))
     ) # navBarPage
     , site_footer
   ))
