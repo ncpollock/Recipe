@@ -43,6 +43,12 @@ table.dataTable tr.selected td, table.dataTable td.selected {
 	background-color: gray !important;
 	}
 
+/* datatable row hover */
+table.dataTable.hover tbody tr:hover, table.dataTable.display tbody tr:hover {
+  background-color: #cdcdcd !important;
+  /* cursor: pointer !important; */
+}
+
 /* horizontal line 
 this is not taking effect...
 */
