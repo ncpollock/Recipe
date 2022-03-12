@@ -1,13 +1,9 @@
 # SERVER START -------------------------------------
 
 #TO-DO
-    # fix errors when buttons are selected, it's like a shadow row is selected
-    # auto-select DT?
-    # suggested calendar
-    # add and polish basic recipes:
-        # egg sandwiches, orange chicken, pot roast.
 
 # V2
+    # refine suggested calendar
     # reactivePoll for everything to implement concurrent use
         # this will also fix failture of edits on admin page to refresh browse page.
     # continue to optimize query and reactivevalue timing
@@ -1042,6 +1038,8 @@ observeEvent(input$add_measure, {
 # _Calendar ---------------
 output$calendar <- renderDT({
     
+    # eventually move this out of renderDT so the month can be switched without
+        # another call to the DB.
     food.df <- tbl(con,'food') %>%
         filter(foodtype_id == 3) %>% # only dinners
         mutate(leftovers = ifelse(serving > 3,TRUE,FALSE)) %>%
@@ -1052,17 +1050,23 @@ output$calendar <- renderDT({
     date_df <- tibble(
         date = seq(floor_date(s_date,'month')
                    , ceiling_date(s_date,'month')-1, by=1)
-        # , month = months(s_date)
-        # , month_abb = months(s_date,TRUE)
         , weekday = factor(weekdays(date), levels = days_of_week)
         , week_of_year = strftime(date,format = "%U")
         , day = strftime(date,format = "%d")) %>%
-        # join recipes in here, instead of spreading day, 
-        # spread day_details with html including the day and the recipe.
-        mutate(food = sample(food.df$food,nrow(.),TRUE)
-               , day_detail = glue("{day}<br/><br/>{food}"))
-    # replace predefined days e.g., egg sandwhiches on Wednesdays
-    # if has leftovers, then lag one and replace
+        # assign food to days 
+        mutate(food = sample(food.df %>% filter(!(id %in% c(2,7))) %>% pull(food)
+                             ,nrow(.),TRUE)
+               # apply standard rules:     
+                # replace predefined days e.g., egg sandwhiches on Wednesdays
+               , food = case_when(weekday == "Wednesday" ~ 'Baked Salmon'
+                                  , weekday == "Tuesday" ~ 'Egg Sandwiches'
+                                  # if has leftovers, then lag one and replace
+                                    # could determine this based upon base servings...
+                                  , weekday %in% c("Thursday","Saturday","Monday") ~ 'Leftovers'
+                                  , 1 == 1 ~ food)
+               , day_detail = glue("{day}<br/>{food}"))
+    
+    # leftovers.c <- tdata[grepl('leftovers',tdata),]
     
     tdata <- date_df %>%
         arrange(weekday) %>%
@@ -1087,14 +1091,9 @@ output$calendar <- renderDT({
               )
     ) %>% # instead, color based on cooking vs leftovers.
         # formatStyle(
-        #   'abb','index',
-        #   target = 'row',
-        #   backgroundColor = styleEqual(
-        #     unique(tdata$index), rep(c('gray','white'),2)) # should always be four months
+        #   names(tdata),
+        #   backgroundColor = styleEqual(leftovers.c, 'orange',default = 'blue') # should always be four months
         # ) %>%
-        # formatStyle('abb'
-        #             ,fontWeight = 'bold'
-        #             ,backgroundColor = 'black') %>%
         formatStyle(names(tdata)
                     ,fontSize = '14pt') %>%
         formatStyle(names(tdata), verticalAlign='top')
