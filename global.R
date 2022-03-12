@@ -3,11 +3,10 @@
 debug_mode <- FALSE
 
 library(shiny)
-# library(shinydashboard) # just for some aesthetics eg box()
 library(DT)
 library(dplyr)
 library(tidyr)
-# library(lubridate)
+library(lubridate)
 library(bslib)
 library(shinyWidgets) # for better checkbox inputs
 library(DBI)
@@ -145,5 +144,13 @@ get_id_from_input <- function(inp_name) {
   result <- as.integer(sub(".*_([0-9]+)", "\\1", inp_name))
   if (! is.na(result)) result
 }
+
+
+# Calendar -----------------
+days_of_week <- c("Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday")
+
+month.c <- floor_date(Sys.Date(),'month') %m+% months(0:11)
+names(month.c) <- month(month.c,label = TRUE,abbr = FALSE)
+
 
 # END ------------------------------

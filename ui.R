@@ -13,7 +13,7 @@ shinyUI(
                                   # , dark = 'red'
                                   )
                # title = p(strong("Recipes"),style=paste0("color:",c_1)),
-               , title = "RecipEase"
+               , title = p(icon("utensils"),"RecipEase")
                , windowTitle = "RecipEase"
                # , footer = site_footer
                , tabPanel(
@@ -22,7 +22,14 @@ shinyUI(
                  , fluidRow(class = 'bg-info'
                            , column(2,h1("Filters:"))
                            , column(2,uiOutput('foodtypeUI'))
-                           , column(3,sliderInput('total_time','Prep + Cook Time',10,90,60,step = 5))
+                           # , column(3,sliderInput('total_time','Prep + Cook Time',10,90,60,step = 5))
+                           , column(3,selectInput("total_time", label="Prep + Cook Time Less Than",
+                                                  choices = c('Any' = 9999
+                                                              , '20 Minutes' = 20
+                                                              , '40 Minutes' = 40
+                                                              , '1 Hour' = 60
+                                                              , '5 Hours' = 300)
+                                                  , selected = 'Any'))
                            , column(2,br()
                                     , tags$label(class="control-label","Meal Prep Only?"),br()
                                     , materialSwitch('meal_prep','',status = 'primary',inline = TRUE))
@@ -34,7 +41,7 @@ shinyUI(
                      column(6,fluidRow(
                        column(5,tags$h2("Ingredients:"))
                        , column(2,uiOutput('servingUI'))
-                       , column(4,actionButton("measure_conv","Amount Conversions",icon("calculator"))
+                       , column(4,actionButton("measure_conv","Conversions",icon("calculator"))
                                      , style = "margin-top: 30px;"))
                     , DTOutput("ingredients"))
                    , column(6,tags$h2("Steps:"),DTOutput("steps") ) )
@@ -44,33 +51,38 @@ shinyUI(
                  ) # fluidPage
                  ) # tabPanel Browse
                
-               # , tabPanel(
-               #   'Plan', icon = icon("calendar")
-               #   , tabsetPanel(
-               #     tabPanel("Calendar"
-               #              , fluidPage(
-               #                sidebarLayout(
-               #                  sidebarPanel(width=3
-               #                               , selectInput("timeslot", label="Time Slot",
-               #                                             choices = list("11:00 - 12:00" = 11, "12:00 - 1:00" = 12, "1:00 - 2:00" = 13), 
-               #                                             selected = 12)
-               #                               , p("Make a selection....")
-               #                               , actionButton("submit_sched", "Submit")
-               #                               
-               #                  ),
-               #                  
-               #                  mainPanel(
-               #                    # DT::dataTableOutput("calendar_dt")
-               #                    br(), br()
-               #                  )
-               #                )
-               #              )) # plan calendar,
-               #     tabPanel("Shopping List", 
-               #              fluidPage(fluidRow(
-               #                p("This feature is still in development. 
-               #     See the list of ingredients needed in order to cook all meals for the month."),
-               #                uiOutput("scheduled_meets")))) # plan shopping list
-               #   )) # Plan
+               , tabPanel(
+                 'Plan', icon = icon("calendar")
+                 , fluidRow(class = 'bg-info', column(2,h1("Filters:"))
+                          , column(4,selectInput('cal_month','Month',month.c,months(Sys.Date()))))
+                 , br(),fluidPage( # gives some padding
+                   fluidRow(DTOutput("calendar"))
+                   )
+                 # , tabsetPanel(
+                 #   tabPanel("Calendar"
+                 #            , fluidPage(
+                 #              sidebarLayout(
+                 #                sidebarPanel(width=3
+                 #                             , selectInput("timeslot", label="Time Slot",
+                 #                                           choices = list("11:00 - 12:00" = 11, "12:00 - 1:00" = 12, "1:00 - 2:00" = 13),
+                 #                                           selected = 12)
+                 #                             , p("Make a selection....")
+                 #                             , actionButton("submit_sched", "Submit")
+                 # 
+                 #                ),
+                 # 
+                 #                mainPanel(
+                 #                  # DT::dataTableOutput("calendar_dt")
+                 #                  br(), br()
+                 #                )
+                 #              )
+                 #            )) # plan calendar,
+                 #   tabPanel("Shopping List",
+                 #            fluidPage(fluidRow(
+                 #              p("This feature is still in development.
+                 #   See the list of ingredients needed in order to cook all meals for the month."),
+                 #              uiOutput("scheduled_meets")))) # plan shopping list
+                 ) # Plan
                
                # , tabPanel(
                #   'Analytics', icon = icon("chart-bar")
@@ -92,8 +104,8 @@ shinyUI(
                           , tabsetPanel(id = "admin_tabs"
                             , tabPanel("Food Type", DTOutput('foodtype'))
                             , tabPanel("Ingredient Type", DTOutput('ing_type'))
-                            , tabPanel("Ingredient", DTOutput('ingredient'))
                             , tabPanel("Measure", DTOutput('measure'))
+                            , tabPanel("Ingredient", DTOutput('ingredient'))
                           )
                          ) # tabPanel admin
                , tabPanel(

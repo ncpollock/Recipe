@@ -3,11 +3,13 @@
 #TO-DO
     # fix errors when buttons are selected, it's like a shadow row is selected
     # auto-select DT?
-    # init TEST database
     # suggested calendar
+    # add and polish basic recipes:
+        # egg sandwiches, orange chicken, pot roast.
 
 # V2
     # reactivePoll for everything to implement concurrent use
+        # this will also fix failture of edits on admin page to refresh browse page.
     # continue to optimize query and reactivevalue timing
     # refine CSS
     # add food description as a tooltip over Food selection table
@@ -62,10 +64,17 @@ shinyServer(function(input, output, session) {
         m.df = tbl(con,'measure') %>% select(-created_date,-mod_date) %>% collect()
         m.df
     })
+    # values for selectInputs
+    measure <- reactive({
+        m <- measure.df()$id
+        names(m) <- measure.df()$measurement
+        m
+    })
     
     ingredient.df <- reactive({
         rv$reval_ingredient.df
         i.df <- tbl(con,'ingredient') %>% 
+            arrange(ingredient) %>%
             select(-created_date,-mod_date) %>% 
             select(-calorie,-protein,-carb,-fat) %>% collect()
         i.df
@@ -80,6 +89,11 @@ shinyServer(function(input, output, session) {
         rv$reval_ing_type.df
         it.df <- tbl(con,'ingredienttype') %>% select(-created_date,-mod_date) %>% collect()
         it.df
+    })
+    ing_type <- reactive({
+        it <- ing_type.df()$id
+        names(it) <- ing_type.df()$ingredienttype
+        it
     })
     
     v.food.df.r <- reactive({
@@ -589,8 +603,9 @@ observeEvent(input$edit_food_ing, {
     showModal(modalDialog(
         title = tags$b("Edit ",rv$food_ing_to_edit$ingredient)
         , class = "edit"
-        , "Food ID: ",rv$food_ing_to_edit$food_id, br()
-        , "Ingredient ID: ", rv$food_ing_to_edit$ingredient_id, br()
+        , if(debug_mode){div(
+            "Food ID: ",rv$food_ing_to_edit$food_id, br()
+            , "Ingredient ID: ", rv$food_ing_to_edit$ingredient_id, br())} else {""}
         , selectInput('food_ing_edit','Ingredient',ingredient(),rv$food_ing_to_edit$ingredient_id)
         , uiOutput('amountUI')
         , checkboxInput('food_ing_opt_edit','Optional?',rv$food_ing_to_edit$optional)
@@ -746,9 +761,10 @@ renderAdminDT <- function(tdata,btn_suffix){
         
         datatable(tdata, rownames = FALSE, selection = 'none'
                   , escape = icon_handle
-                  , options = list(pageLength = 30
+                  , options = list(pageLength = 25
+                                   , searching = TRUE
                                    , columnDefs = list(dis_but_order)
-                                   , dom = 'tp'
+                                   # , dom = 'tp'
                   )
         ) %>%
             formatStyle(names(tdata), verticalAlign='middle')
@@ -817,6 +833,21 @@ observeEdit <- function(tdata,btn_suffix,name){
         rowNum <- get_id_from_input(input[[paste0('edit_',btn_suffix)]])
         rv[[paste0(btn_suffix,'_to_edit')]] <- tdata[rowNum,]
         
+        if(btn_suffix == 'ingredient'){ # since ingredient is a M:M table.
+            input_list <- list(
+                textInput('ingredient_edit','Ingredient'
+                          , value = tdata[rowNum,'ingredient'], width = "100%")
+                , selectInput("measure_id_edit", label="How should it be measured?",
+                              choices = measure(),width = "100%",
+                              selected = tdata[rowNum,'measure_id'])
+                , selectInput("substitute_id_edit", label="What can it be substituted with?",
+                              choices = c('Nothing' = NA,ingredient()),width = "100%",
+                              selected = tdata[rowNum,'substitute_id'])
+                , selectInput("ingredienttype_id_edit", label="Ingredient Type",
+                              choices = ing_type(),width = "100%",
+                              selected = tdata[rowNum,'ingredienttype_id'])
+            )
+        } else { #all other admin tables.
         input_list <- lapply(names(tdata[,-1]), function(i) {
             if(is.numeric(tdata[[i]])){
                 numericInput(glue('{i}_edit'),i,value = as.integer(tdata[rowNum,i])
@@ -826,6 +857,7 @@ observeEdit <- function(tdata,btn_suffix,name){
                           , value = tdata[rowNum,i], width = "100%")
                 }
             })
+        }
         
         showModal(modalDialog(
             title = glue("Edit {tdata[rowNum,2]}, or create a new {name}.")
@@ -869,6 +901,19 @@ observeEvent(input$confirm_edit_foodtype, {
     rv$reval_foodtype.df <- !rv$reval_foodtype.df # update datatable
 }) # observeEvent confirm_edit_foodtype
 
+observeEvent(input$add_foodtype, {
+    
+    dbExecute(rv$con_admin, sqlInterpolate(
+        rv$con_admin,
+        "INSERT INTO foodtype(foodtype,mod_date)
+        VALUES(?ft, now());"
+        , ft = input$foodtype_edit)) # dbExecute
+    
+    removeModal()
+    
+    rv$reval_foodtype.df <- !rv$reval_foodtype.df # update datatable
+}) # observeEvent add_foodtype
+
 observeEvent(input$confirm_edit_ing_type, {
     
     dbExecute(rv$con_admin, sqlInterpolate(
@@ -889,6 +934,21 @@ observeEvent(input$confirm_edit_ing_type, {
     rv$reval_ing_type.df <- !rv$reval_ing_type.df # update datatable
 }) # observeEvent confirm_edit_ing_type
 
+observeEvent(input$add_ing_type, {
+    
+    dbExecute(rv$con_admin, sqlInterpolate(
+        rv$con_admin,
+        "INSERT INTO ingredienttype(ingredienttype,icon,color,mod_date)
+        VALUES(?it,?icon,?color,now());"
+        , it = input$ingredienttype_edit
+        , icon = input$icon_edit
+        , color = input$color_edit)) # dbExecute
+    
+    removeModal()
+    
+    rv$reval_ing_type.df <- !rv$reval_ing_type.df # update datatable
+}) # observeEvent add_ing_type
+
 observeEvent(input$confirm_edit_ingredient, {
     
     dbExecute(rv$con_admin, sqlInterpolate(
@@ -903,7 +963,7 @@ observeEvent(input$confirm_edit_ingredient, {
         , id = rv$ingredient_to_edit$id
         , i = input$ingredient_edit
         , m_id = input$measure_id_edit
-        , s_id = input$substitute_id_edit
+        , s_id = as.integer(input$substitute_id_edit)
         , it_id = input$ingredienttype_id_edit)) # dbExecute
     # eventually add calorie, protein, carb, and fat
     
@@ -911,6 +971,23 @@ observeEvent(input$confirm_edit_ingredient, {
     
     rv$reval_ingredient.df <- !rv$reval_ingredient.df # update datatable
 }) # observeEvent confirm_edit_ingredient
+
+observeEvent(input$add_ingredient, {
+    
+    dbExecute(rv$con_admin, sqlInterpolate(
+        rv$con_admin,
+        "INSERT INTO ingredient(ingredient,measure_id,substitute_id,ingredienttype_id,mod_date)
+        VALUES(?i,?m_id,?s_id,?it_id,now());"
+        , i = input$ingredient_edit
+        , m_id = input$measure_id_edit
+        , s_id = as.integer(input$substitute_id_edit)
+        , it_id = input$ingredienttype_id_edit)) # dbExecute
+    # eventually add calorie, protein, carb, and fat
+    
+    removeModal()
+    
+    rv$reval_ingredient.df <- !rv$reval_ingredient.df # update datatable
+}) # observeEvent add_ingredient
 
 observeEvent(input$confirm_edit_measure, {
     
@@ -927,6 +1004,19 @@ observeEvent(input$confirm_edit_measure, {
     
     rv$reval_measure.df <- !rv$reval_measure.df # update datatable
 }) # observeEvent confirm_edit_measure
+
+observeEvent(input$add_measure, {
+    
+    dbExecute(rv$con_admin, sqlInterpolate(
+        rv$con_admin,
+        "INSERT INTO measure(measurement,mod_date)
+        VALUES(?m,now());"
+        , m = input$measurement_edit)) # dbExecute
+    
+    removeModal()
+    
+    rv$reval_measure.df <- !rv$reval_measure.df # update datatable
+}) # observeEvent add_measure
 
 # Sandbox -------------------
 
@@ -947,6 +1037,69 @@ observeEvent(input$confirm_edit_measure, {
 #                                      return(q)
 #                                  }
 # )
+
+# Plan -------------------------------------------------
+# _Calendar ---------------
+output$calendar <- renderDT({
+    
+    food.df <- tbl(con,'food') %>%
+        filter(foodtype_id == 3) %>% # only dinners
+        mutate(leftovers = ifelse(serving > 3,TRUE,FALSE)) %>%
+        select(-created_date,-mod_date) %>%
+        collect()
+    
+    s_date <- as.Date(input$cal_month)
+    date_df <- tibble(
+        date = seq(floor_date(s_date,'month')
+                   , ceiling_date(s_date,'month')-1, by=1)
+        # , month = months(s_date)
+        # , month_abb = months(s_date,TRUE)
+        , weekday = factor(weekdays(date), levels = days_of_week)
+        , week_of_year = strftime(date,format = "%U")
+        , day = strftime(date,format = "%d")) %>%
+        # join recipes in here, instead of spreading day, 
+        # spread day_details with html including the day and the recipe.
+        mutate(food = sample(food.df$food,nrow(.),TRUE)
+               , day_detail = glue("{day}<br/><br/>{food}"))
+    # replace predefined days e.g., egg sandwhiches on Wednesdays
+    # if has leftovers, then lag one and replace
+    
+    tdata <- date_df %>%
+        arrange(weekday) %>%
+        select(-date,-food,-day) %>%
+        group_by(weekday) %>%
+        spread(weekday,day_detail) %>%
+        ungroup() %>%
+        select(-week_of_year)
+               # ,-month,-month_abb)
+    
+    datatable(tdata
+              , colnames = days_of_week
+              , escape = FALSE
+              , rownames = FALSE #add to dt global options
+              , selection = list(target = 'cell') # eventually pre-select current day?
+              , options = list(
+                  dom = 't'
+                  , pageLength = length(unique(date_df$week_of_year))
+                  , columnDefs = list(
+                      list(targets = "_all", orderable = FALSE) # disable column ording
+                      , list(className = 'dt-center',targets="_all")) # center all
+              )
+    ) %>% # instead, color based on cooking vs leftovers.
+        # formatStyle(
+        #   'abb','index',
+        #   target = 'row',
+        #   backgroundColor = styleEqual(
+        #     unique(tdata$index), rep(c('gray','white'),2)) # should always be four months
+        # ) %>%
+        # formatStyle('abb'
+        #             ,fontWeight = 'bold'
+        #             ,backgroundColor = 'black') %>%
+        formatStyle(names(tdata)
+                    ,fontSize = '14pt') %>%
+        formatStyle(names(tdata), verticalAlign='top')
+    
+}) # recipes
 
 }) # shinyServer 
 # END ------------------------
