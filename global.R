@@ -2,9 +2,11 @@
 # add debug-friendly UI elements e.g., surrogate primary keys
 debug_mode <- FALSE
 
+library(RPostgres)
 library(shiny)
 library(DT)
 library(dplyr)
+library(dbplyr)
 library(tidyr)
 library(lubridate)
 library(bslib)
