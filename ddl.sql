@@ -3,7 +3,7 @@ CREATE DATABASE recipe CONNECTION LIMIT 20;
 COMMENT ON DATABASE recipe
     IS 'A transactional database for our favorite recipes.';
 
-CREATE DATABASE test_recipe CONNECTION LIMIT 5;
+CREATE DATABASE test_recipe CONNECTION LIMIT 20;
 COMMENT ON DATABASE test_recipe
     IS 'TEST instance of a transactional database for our favorite recipes.';
 
@@ -59,7 +59,7 @@ INSERT INTO IngredientType (IngredientType,icon,color) VALUES
 	, ('Grain','bread-slice','brown')
 	, ('Vegetarian Protein','egg','gray')
 	, ('Spice','mortar-pestle','gray')
-	, ('Other','circle-question','yellow')
+	, ('Other','question-circle','yellow')
 	, ('Pepper','pepper-hot','red');
 
 CREATE TABLE Measure
@@ -97,7 +97,8 @@ INSERT INTO Food (FoodType_ID,Food,Description,Serving,Meal_Prep) VALUES
 	, (3,'Baked Salmon','',5,'f')
 	, (3,'Meatloaf','',6,'f')
 	, (3,'Veggie Burgers','',5,'t')
-	, (6,'Steamed Broccoli','Healthy and tasty, Stephanie''s favorite!',2,'f')
+	, (6,'Steamed Broccoli','Healthy and tasty, Stephanie''s favorite!',2,'f');
+/*
 	, (3,'Orange Chicken','Easy crock-pot recipe.',8,'f')
 	, (6,'Steamed Green Beans','',2,'f')
 	, (3,'Egg Sandwiches','Easy if you have a toaster that can poach eggs.',1,'f')
@@ -105,6 +106,7 @@ INSERT INTO Food (FoodType_ID,Food,Description,Serving,Meal_Prep) VALUES
 	, (2,'PB&J','A timeless classic.',1,'t')
 	, (2,'Oatmeal','It''s tastier and heartier than you think.',1,'f')
 	, (6,'Seared Steak','',4,'f');
+*/
 
 CREATE TABLE Ingredient
 (
@@ -163,7 +165,8 @@ INSERT INTO Step (Food_ID,ActionTime,Instruction_Order,Instruction) VALUES
 , (2,0.5,2,'Remove salmon from fridge, pat dry with paper towel, then sprinkle with salt, pepper, and minced garlic.')
 , (2,1,4,'Melt 1 - 2 tbsp of Butter in Microwave, about 45 seconds.')
 , (2,1,5,'Place salmon on baking sheet, spread melted Butter on top of Salmon.')
-, (2,20,6,'Wrap salmon in foil, then place in preheated oven and cook for 12-20 minutes to an internal temperature of 125 - 135 F.')
+, (2,20,6,'Place salmon in preheated oven and cook for 12-20 minutes to an internal temperature of 125 F.')
+, (2,2.5,7,'When the salmon has reached 125 F, turn the oven off and turn the broiler on Hi for two minutes.')
 , (1,0.5,3,'Line a baking sheet with aluminum foil.')
 , (1,1,4,'Pour breadcrumbs on a paper plate and pour oil on another plate. Just enough to coat all the chicken.')
 , (1,2,2,'Remove chicken from fridge and pat dry with paper towel.')
@@ -176,8 +179,8 @@ INSERT INTO Step (Food_ID,ActionTime,Instruction_Order,Instruction) VALUES
 , (5,0.5,1,'Rinse broccolie under cold water.')
 , (5,0.5,2,'Add water into bottom of steamer.')
 , (5,4,3,'Chop broccoli into florets and place in top of steamer.')
-, (5,6,4,'Cook broccoli with vent open for 5 - 6 minutes.')
-, (5,1,5,'Place butter in steamer with lid on for about 15 seconds, then spread the softened butter over the broccoli.')
+, (5,6,4,'Cook broccoli with vent open between 4:30 - 5:45 minutes.')
+, (5,1,5,'Place butter in steamer with lid on for about 15 seconds, then slide the softened butter over the broccoli.')
 , (4,0,2,'Roughly mash the black beans with a fork leaving some whole black beans in a paste-like mixture.')
 , (4,7,3,'Mix the quinoa, bread crumbs, bell pepper, onion, garlic, cumin, salt, hot pepper sauce, and egg into the black beans using your hands.')
 , (4,3,4,'Form the black bean mixture into 5 patties.')
@@ -228,7 +231,7 @@ INSERT INTO Food_Ingredient (Food_ID,Ingredient_ID,QTY,Optional) VALUES
 , (2,22,2,'f');
 
 -- Views -----------------------------------------------------------
-DROP VIEW v_food;
+DROP VIEW IF EXISTS v_food;
 CREATE VIEW v_food AS
 	SELECT f.*
 	, CASE WHEN s.total_time IS NULL THEN 0 ELSE s.total_time END total_time
@@ -241,7 +244,7 @@ CREATE VIEW v_food AS
 -- could count ingredients as well for an overall complexity score 
 	-- e.g., complexity = normalized(total_time) + normalized(ingredient_count) + rarity of ingredients
 
-DROP VIEW v_food_ing;
+DROP VIEW IF EXISTS v_food_ing;
 CREATE VIEW v_food_ing AS
 	SELECT fi.*
 		, i.ingredient, i.measure_id, i.substitute_id, i.ingredienttype_id
