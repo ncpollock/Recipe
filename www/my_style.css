@@ -10,6 +10,16 @@
   box-shadow: 5px 5px 5px #404040;
 }
 */
+/* used for holding food filters */
+.bg-info, #admin_tabs {
+  margin-top: -20px;
+  padding-top: 20px;
+}
+
+.nav-link.active {
+  background-color: $FF7518; /* orange */
+  color: black;
+}
 
 /* simple footer to style with a <div>id="site-footer"</div> */
 #site-footer {
